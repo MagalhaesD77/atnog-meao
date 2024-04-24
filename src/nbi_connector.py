@@ -97,7 +97,7 @@ class NBIConnector:
                 command = (
                     "{} --kubeconfig={} --namespace={} get pods -l ns_id={} -o=json".format(
                         self.kubectl_command,
-                        os.path.join(os.environ['HOME'], self.kubectl_config_map),
+                        self.kubectl_config_map,
                         namespace,
                         ns_id,
                     )

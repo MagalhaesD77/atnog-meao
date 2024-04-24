@@ -23,5 +23,5 @@ KAFKA_CONSUMER_CONF = {
     'auto.offset.reset': 'latest'
 }
 
-KUBECTL_COMMAND = "kubectl"
-KUBECTL_CONFIG_PATH = ".kube/config"
+KUBECTL_COMMAND = "/usr/local/bin/kubectl"
+KUBECTL_CONFIG_PATH = "/config/kube_config"
