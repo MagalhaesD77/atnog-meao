@@ -2,16 +2,20 @@ import json
 from time import sleep
 from confluent_kafka import Consumer, KafkaError
 import threading
+import random
 
 class MEAO:
-    def __init__(self, nbi_connector, kafka_topic, kafka_consumer_conf, num_cpu_cores, ram_size, cpu_load_thresh, mem_load_thresh) -> None:
-        self.nbi_connector = nbi_connector
+    def __init__(self, nbi_k8s_connector, kafka_topic, kafka_consumer_conf, cpu_load_thresh, mem_load_thresh) -> None:
+        self.nbi_k8s_connector = nbi_k8s_connector
         self.kafka_topic = kafka_topic
         self.kafka_consumer_conf = kafka_consumer_conf
-        self.num_cpu_cores = num_cpu_cores
-        self.ram_size = ram_size
         self.cpu_load_thresh = cpu_load_thresh
         self.mem_load_thresh = mem_load_thresh
+        self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+        print("Node Specs: " + str(self.nodeSpecs))
+        self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
+        print("Container Info: " + str(self.containerInfo))
+
 
     def start(self):
         # Create threads
@@ -27,7 +31,7 @@ class MEAO:
             return True
         return False
 
-    def calcMetrics(self, cName, values, previousCPU, previousSystem):
+    def calcMetrics(self, cName, container, values, previousCPU, previousSystem):
         #print(json.dumps(values, indent=2))
 
         print("-------------------------------------------------------")
@@ -38,7 +42,7 @@ class MEAO:
         # Memory
         memUsage = values["container_stats"]["memory"]["usage"]
         #print("Memory Usage:", memUsage)
-        memLoad = (memUsage/(self.ram_size*pow(1024,3))) * 100
+        memLoad = (memUsage/(self.nodeSpecs[container["node"]]["memory_size"]*pow(1024,3))) * 100
         print("Memory Load:", memLoad)
 
 
@@ -57,7 +61,7 @@ class MEAO:
             #print("System Delta", systemDelta)
 
             if systemDelta > 0.0 and cpuDelta >= 0.0:
-                cpuLoad = ((cpuDelta / systemDelta) / self.num_cpu_cores) * 100
+                cpuLoad = ((cpuDelta / systemDelta) / self.nodeSpecs[container["node"]]["num_cpu_cores"]) * 100
                 print("CPU Load:", cpuLoad)
         previousCPU = currentCPU
         previousSystem = timestamp
@@ -79,8 +83,6 @@ class MEAO:
         return metrics
 
     def consume_messages(self):
-        global containerInfo
-
         # Create Kafka consumer
         consumer = Consumer(self.kafka_consumer_conf)
 
@@ -116,20 +118,20 @@ class MEAO:
                 # Process the message
                 values = json.loads(message.value().decode('utf-8'))
                 cName = values["container_Name"]
-                for container in containerInfo:
+                for container in self.containerInfo:
                     if container["id"] in cName:
-                        metrics = self.calcMetrics(cName, values, metrics["previousCPU"], metrics["previousSystem"])
+                        metrics = self.calcMetrics(cName, container, values, metrics["previousCPU"], metrics["previousSystem"])
 
                         res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
-                        self.nbi_connector.migrate(container, res)
+                        if res:
+                            self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
             consumer.close()
 
     def update_container_ids(self):
-        global containerInfo
         while True:
-            containerInfo = self.nbi_connector.getContainerInfo()
-            print("Container Info: " + str(containerInfo))
             sleep(5)  # Wait for 5 seconds before updating again
+            self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
+            print("Container Info: " + str(self.containerInfo))

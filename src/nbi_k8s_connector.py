@@ -1,8 +1,8 @@
 import warnings
 import requests
 import json
-import os
 import subprocess
+import yaml
 
 class NBIConnector:
 
@@ -10,7 +10,10 @@ class NBIConnector:
         self.nbi_url = nbi_url
         self.authToken = self.getAuthToken()
         self.kubectl_command = kubectl_command
-        self.kubectl_config_map = kubectl_config_path
+        self.kubectl_config_path = kubectl_config_path
+        kubectl_config = json.loads(self.callEndpoints("/admin/v1/k8sclusters", "GET"))[0]
+        with open(self.kubectl_config_path, 'w') as file:
+            yaml.dump(kubectl_config["credentials"], file)
 
     def getAuthToken(self):
         # Authentication
@@ -62,6 +65,31 @@ class NBIConnector:
 
         return info
     
+    def getNodeSpecs(self):
+        nodeSpecs = {}
+
+        command = (
+            "{} --kubeconfig={} get nodes -o=json".format(
+                self.kubectl_command,
+                self.kubectl_config_path,
+            )
+        )
+        try:
+            # Execute the kubectl command and capture the output
+            node_info = json.loads(subprocess.check_output(command.split()))
+        except subprocess.CalledProcessError as e:
+            # Handle any errors if the command fails
+            print("Error executing kubectl command:", e)
+            return None
+
+        for node in node_info["items"]:
+            nodeSpecs[node["metadata"]["labels"]["kubernetes.io/hostname"]] = {
+                "num_cpu_cores": int(node["status"]["allocatable"]["cpu"]),
+                "memory_size": int(node["status"]["allocatable"]["memory"][:-2])/pow(1024,2),
+            }
+
+        return nodeSpecs
+
     def getContainerInfo(self):
         ns_instances = self.callEndpoints("/nslcm/v1/ns_instances", "GET")
         try:
@@ -97,7 +125,7 @@ class NBIConnector:
                 command = (
                     "{} --kubeconfig={} --namespace={} get pods -l ns_id={} -o=json".format(
                         self.kubectl_command,
-                        self.kubectl_config_map,
+                        self.kubectl_config_path,
                         namespace,
                         ns_id,
                     )
@@ -127,19 +155,18 @@ class NBIConnector:
 
         return containerInfo
     
-    def migrate(self, container, migrate):
-        if migrate:            
-            returnMsg = self.callEndpoints(
-                "/nslcm/v1/ns_instances/{}/migrate_k8s".format(container["ns_id"]), 
-                "POST", 
-                data = json.dumps({
-                    "vnfInstanceId": container["vnf_id"],
-                    "migrateToHost": "k3s-worker1-pedrocjdpereira",
-                    "kdu": {
-                        "kduId": container["kdu_id"],
-                        "kduCountIndex": 0,
-                    }
-                })
-            )
-            print("MIGRATE CONTAINER", container)
-            print("returnMsg:", returnMsg)
+    def migrate(self, container, node):
+        returnMsg = self.callEndpoints(
+            "/nslcm/v1/ns_instances/{}/migrate_k8s".format(container["ns_id"]), 
+            "POST", 
+            data = json.dumps({
+                "vnfInstanceId": container["vnf_id"],
+                "migrateToHost": node,
+                "kdu": {
+                    "kduId": container["kdu_id"],
+                    "kduCountIndex": 0,
+                }
+            })
+        )
+        print("MIGRATE CONTAINER {} TO NODE {}".format(container, node))
+        print("returnMsg: {}".format(returnMsg))

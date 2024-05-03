@@ -1,20 +1,18 @@
 from config import *
-from nbi_connector import NBIConnector
+from nbi_k8s_connector import NBIConnector
 from meao import MEAO
 
 def main():
-    nbi_connector = NBIConnector(
+    nbi_k8s_connector = NBIConnector(
         NBI_URL,
         KUBECTL_COMMAND,
         KUBECTL_CONFIG_PATH
     )
 
     meao = MEAO(
-        nbi_connector,
+        nbi_k8s_connector,
         KAFKA_TOPIC,
         KAFKA_CONSUMER_CONF,
-        NUM_CPU_CORES,
-        RAM_SIZE,
         CPU_LOAD_THRESH,
         MEM_LOAD_THRESH,
     )

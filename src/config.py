@@ -2,10 +2,6 @@
 NBI_URL="https://10.255.32.88:9999/osm"
 USERNAME= PASSWORD = PROJECT = "admin"
 
-# Specs
-RAM_SIZE = 8
-NUM_CPU_CORES = 8
-
 # Thresholds
 CPU_LOAD_THRESH = 80
 MEM_LOAD_THRESH = 60
@@ -24,4 +20,4 @@ KAFKA_CONSUMER_CONF = {
 }
 
 KUBECTL_COMMAND = "/usr/local/bin/kubectl"
-KUBECTL_CONFIG_PATH = "/config/kube_config"
+KUBECTL_CONFIG_PATH = "kube_config"
