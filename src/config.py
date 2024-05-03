@@ -1,6 +1,5 @@
 # OSM NBI configs
 NBI_URL="https://10.255.32.88:9999/osm"
-USERNAME= PASSWORD = PROJECT = "admin"
 
 # Thresholds
 CPU_LOAD_THRESH = 80
