@@ -5,8 +5,9 @@ import threading
 import random
 
 class MEAO:
-    def __init__(self, nbi_k8s_connector, kafka_topic, kafka_consumer_conf, cpu_load_thresh, mem_load_thresh) -> None:
+    def __init__(self, nbi_k8s_connector, update_container_ids_freq, kafka_topic, kafka_consumer_conf, cpu_load_thresh, mem_load_thresh) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
+        self.update_container_ids_freq = update_container_ids_freq
         self.kafka_topic = kafka_topic
         self.kafka_consumer_conf = kafka_consumer_conf
         self.cpu_load_thresh = cpu_load_thresh
@@ -132,6 +133,6 @@ class MEAO:
 
     def update_container_ids(self):
         while True:
-            sleep(5)  # Wait for 5 seconds before updating again
+            sleep(self.update_container_ids_freq)
             self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
             print("Container Info: " + str(self.containerInfo))

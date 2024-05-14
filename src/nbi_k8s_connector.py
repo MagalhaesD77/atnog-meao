@@ -11,7 +11,11 @@ class NBIConnector:
         self.authToken = self.getAuthToken()
         self.kubectl_command = kubectl_command
         self.kubectl_config_path = kubectl_config_path
-        kubectl_config = json.loads(self.callEndpoints("/admin/v1/k8sclusters", "GET"))[0]
+        try:
+            kubectl_config = json.loads(self.callEndpoints("/admin/v1/k8sclusters", "GET"))[0]
+        except Exception as e:
+            print("ERROR: Could not get kube config")
+            exit(1)
         with open(self.kubectl_config_path, 'w') as file:
             yaml.dump(kubectl_config["credentials"], file)
 
