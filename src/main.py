@@ -1,11 +1,10 @@
 import os
-
 from nbi_k8s_connector import NBIConnector
 from meao import MEAO
 
 def main():
     nbi_k8s_connector = NBIConnector(
-        os.environ.get("NBI_URL"),
+        os.environ.get("OSM_HOSTNAME"),
         os.environ.get("KUBECTL_COMMAND"),
         os.environ.get("KUBECTL_CONFIG_PATH")
     )

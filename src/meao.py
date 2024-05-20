@@ -1,7 +1,8 @@
 import json
-from time import sleep
-from confluent_kafka import Consumer, KafkaError
+import asyncio
+import time
 import threading
+from confluent_kafka import Consumer, KafkaError
 import random
 
 class MEAO:
@@ -60,10 +61,26 @@ class MEAO:
             # Calculate System delta
             systemDelta = timestamp - previousSystem
             #print("System Delta", systemDelta)
+            print(previousCPU)
+            print(currentCPU)
+            print(cpuDelta)
+            print(previousSystem)
+            print(timestamp)
+            print(systemDelta)
+            print(cpuLoad)
 
             if systemDelta > 0.0 and cpuDelta >= 0.0:
                 cpuLoad = ((cpuDelta / systemDelta) / self.nodeSpecs[container["node"]]["num_cpu_cores"]) * 100
                 print("CPU Load:", cpuLoad)
+                if cpuLoad > 100:
+                    print(previousCPU)
+                    print(currentCPU)
+                    print(cpuDelta)
+                    print(previousSystem)
+                    print(timestamp)
+                    print(systemDelta)
+                    print(cpuLoad)
+                    cpuLoad = 0
         previousCPU = currentCPU
         previousSystem = timestamp
 
@@ -82,6 +99,13 @@ class MEAO:
         }
 
         return metrics
+    
+    async def processContainer(self, cName, container, values, previousCPU, previousSystem):
+        metrics = self.calcMetrics(cName, container, values, previousCPU, previousSystem)
+
+        res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
+        if res:
+            self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
 
     def consume_messages(self):
         # Create Kafka consumer
@@ -121,11 +145,7 @@ class MEAO:
                 cName = values["container_Name"]
                 for container in self.containerInfo:
                     if container["id"] in cName:
-                        metrics = self.calcMetrics(cName, container, values, metrics["previousCPU"], metrics["previousSystem"])
-
-                        res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
-                        if res:
-                            self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
+                        asyncio.run(self.processContainer(cName, container, values, metrics["previousCPU"], metrics["previousSystem"]))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -133,6 +153,6 @@ class MEAO:
 
     def update_container_ids(self):
         while True:
-            sleep(self.update_container_ids_freq)
+            time.sleep(self.update_container_ids_freq)
             self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
             print("Container Info: " + str(self.containerInfo))
