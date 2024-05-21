@@ -61,6 +61,8 @@ class NBIConnector:
             for vnf_id in vnf_ids:
                 vnfContent = self.nbi_client.vnf.get(vnf_id)
                 vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
+            if "K8s" not in ns_instance["_admin"]["deployed"]:
+                continue
             kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
             for kdu in kdu_instances:
                 kdu_instance = kdu["kdu-instance"]

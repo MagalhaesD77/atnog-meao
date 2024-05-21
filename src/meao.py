@@ -17,6 +17,7 @@ class MEAO:
         print("Node Specs: " + str(self.nodeSpecs))
         self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
         print("Container Info: " + str(self.containerInfo))
+        self.cpu_history = {}
 
 
     def start(self):
@@ -33,11 +34,11 @@ class MEAO:
             return True
         return False
 
-    def calcMetrics(self, cName, container, values, previousCPU, previousSystem):
+    def calcMetrics(self, cName, container, values):
         #print(json.dumps(values, indent=2))
 
         print("-------------------------------------------------------")
-        print("Container Name:", cName)
+        print("Container ID:", container["id"])
         print("Timestamp:", values["timestamp"])
 
 
@@ -49,40 +50,37 @@ class MEAO:
 
 
         # CPU
-        timestampParts = timestampParts = values["timestamp"].split(':')
+        timestampParts = values["timestamp"].split(':')
         timestamp = (float(timestampParts[-3][-2:])*pow(60,2) + float(timestampParts[-2])*60 + float(timestampParts[-1][:-1])) * pow(10, 9)
         currentCPU = values["container_stats"]["cpu"]["usage"]["total"]
         cpuLoad = 0
-        if previousCPU != 0 and previousSystem != 0:
+        if cName not in self.cpu_history.keys():
+            self.cpu_history[cName] = {}
+            self.cpu_history[cName]["previousCPU"] = 0
+            self.cpu_history[cName]["previousSystem"] = 0
+        if self.cpu_history[cName]["previousCPU"] != 0 and self.cpu_history[cName]["previousSystem"] != 0:
             # Calculate CPU usage delta
-            cpuDelta = currentCPU - previousCPU
+            cpuDelta = currentCPU - self.cpu_history[cName]["previousCPU"]
             #print("CPU Delta: ", cpuDelta)
 
             # Calculate System delta
-            systemDelta = timestamp - previousSystem
+            systemDelta = timestamp - self.cpu_history[cName]["previousSystem"]
             #print("System Delta", systemDelta)
-            print(previousCPU)
-            print(currentCPU)
-            print(cpuDelta)
-            print(previousSystem)
-            print(timestamp)
-            print(systemDelta)
-            print(cpuLoad)
 
             if systemDelta > 0.0 and cpuDelta >= 0.0:
                 cpuLoad = ((cpuDelta / systemDelta) / self.nodeSpecs[container["node"]]["num_cpu_cores"]) * 100
                 print("CPU Load:", cpuLoad)
                 if cpuLoad > 100:
-                    print(previousCPU)
+                    print(self.cpu_history[cName]["previousCPU"])
                     print(currentCPU)
                     print(cpuDelta)
-                    print(previousSystem)
+                    print(self.cpu_history[cName]["previousSystem"])
                     print(timestamp)
                     print(systemDelta)
                     print(cpuLoad)
                     cpuLoad = 0
-        previousCPU = currentCPU
-        previousSystem = timestamp
+        self.cpu_history[cName]["previousCPU"] = currentCPU
+        self.cpu_history[cName]["previousSystem"] = timestamp
 
         #print("Network RX Bytes:", values["container_stats"]["network"]["rx_bytes"])
         #print("Network TX Bytes:", values["container_stats"]["network"]["tx_bytes"])
@@ -94,14 +92,12 @@ class MEAO:
         metrics = {
             "cpuLoad": cpuLoad,
             "memLoad": memLoad,
-            "previousCPU": previousCPU,
-            "previousSystem": previousSystem
         }
 
         return metrics
     
-    async def processContainer(self, cName, container, values, previousCPU, previousSystem):
-        metrics = self.calcMetrics(cName, container, values, previousCPU, previousSystem)
+    async def processContainer(self, cName, container, values):
+        metrics = self.calcMetrics(cName, container, values)
 
         res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
         if res:
@@ -115,14 +111,6 @@ class MEAO:
         consumer.subscribe([self.kafka_topic])
 
         try:
-            
-            metrics = {
-                "cpuLoad": 0,
-                "memLoad": 0,
-                "previousCPU": 0,
-                "previousSystem": 0
-            }
-            
             print("Listening to Kafka....")
             while True:
                 
@@ -145,7 +133,7 @@ class MEAO:
                 cName = values["container_Name"]
                 for container in self.containerInfo:
                     if container["id"] in cName:
-                        asyncio.run(self.processContainer(cName, container, values, metrics["previousCPU"], metrics["previousSystem"]))
+                        asyncio.run(self.processContainer(cName, container, values))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
