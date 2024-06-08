@@ -14,7 +14,7 @@ class NBIConnector:
         try:
             kubectl_config = self.nbi_client.k8scluster.list()[0]
         except Exception as e:
-            print("ERROR: Could not get kube config")
+            print("ERROR: Could not get kube config: {}".format(e))
             exit(1)
         with open(self.kubectl_config_path, 'w') as file:
             yaml.dump(kubectl_config["credentials"], file)
@@ -55,14 +55,14 @@ class NBIConnector:
         containerInfo = []
 
         for ns_instance in ns_instances:
+            if "deployed" not in ns_instance["_admin"] or "K8s" not in ns_instance["_admin"]["deployed"]:
+                continue
             ns_id = ns_instance["_id"]
             vnf_ids = ns_instance["constituent-vnfr-ref"]
             vnf_instances = {}
             for vnf_id in vnf_ids:
                 vnfContent = self.nbi_client.vnf.get(vnf_id)
                 vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
-            if "K8s" not in ns_instance["_admin"]["deployed"]:
-                continue
             kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
             for kdu in kdu_instances:
                 kdu_instance = kdu["kdu-instance"]
@@ -104,11 +104,10 @@ class NBIConnector:
         return containerInfo
     
     def migrate(self, container, node):
-        #self.nbi_client.ns.migrate
-        '''returnMsg = self.callEndpoints(
-            "/nslcm/v1/ns_instances/{}/migrate_k8s".format(container["ns_id"]), 
-            "POST", 
-            data = json.dumps({
+        print("MIGRATING CONTAINER {} TO NODE {}".format(container, node))
+        self.nbi_client.ns.migrate_k8s(
+            container["ns_id"],
+            migrate_dict = {
                 "vnfInstanceId": container["vnf_id"],
                 "migrateToHost": node,
                 "kdu": {
@@ -116,6 +115,5 @@ class NBIConnector:
                     "kduCountIndex": 0,
                 }
             })
-        )'''
-        print("MIGRATE CONTAINER {} TO NODE {}".format(container, node))
+        print("SUCESS!!!!! MIGRATED CONTAINER {} TO NODE {}".format(container, node))
         #print("returnMsg: {}".format(returnMsg))

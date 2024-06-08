@@ -13,7 +13,7 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s
 RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin
 
-RUN git clone https://osm.etsi.org/gerrit/osm/osmclient
+COPY osmclient /osmclient
 RUN python3 -m pip install --user /osmclient -r /osmclient/requirements.txt -r /osmclient/requirements-dev.txt
 
 COPY src /src
