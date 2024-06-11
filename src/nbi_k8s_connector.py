@@ -1,8 +1,9 @@
 import json
 import subprocess
 import yaml
+import time
 from osmclient import client
-from osmclient.common.exceptions import ClientException
+from osmclient.common.exceptions import ClientException, OsmHttpException
 
 class NBIConnector:
 
@@ -12,7 +13,7 @@ class NBIConnector:
         self.kubectl_config_path = kubectl_config_path
         self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
         try:
-            kubectl_config = self.nbi_client.k8scluster.list()[0]
+            kubectl_config = self.callNBI(self.nbi_client.k8scluster.list)[0]
         except Exception as e:
             print("ERROR: Could not get kube config: {}".format(e))
             exit(1)
@@ -45,7 +46,8 @@ class NBIConnector:
         return nodeSpecs
 
     def getContainerInfo(self):
-        ns_instances = self.nbi_client.ns.list()
+        self.callNBI(self.nbi_client.__init__, host=self.osm_hostname, port=9999,sol005=True)
+        ns_instances = self.callNBI(self.nbi_client.ns.list)
         
         if len(ns_instances) < 1:
             print('ERROR: No deployed ns instances')
@@ -61,7 +63,7 @@ class NBIConnector:
             vnf_ids = ns_instance["constituent-vnfr-ref"]
             vnf_instances = {}
             for vnf_id in vnf_ids:
-                vnfContent = self.nbi_client.vnf.get(vnf_id)
+                vnfContent = self.callNBI(self.nbi_client.vnf.get, vnf_id)
                 vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
             kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
             for kdu in kdu_instances:
@@ -85,35 +87,52 @@ class NBIConnector:
                     # Handle any errors if the command fails
                     print("Error executing kubectl command:", e)
                     return None
-
+                
                 for pod in k8s_info["items"]:
-                    nodeName = pod["spec"]["nodeName"]
-                    containers = pod["status"]["containerStatuses"]
-                    for container in containers:
-                        if "containerID" in container:
-                            id = container["containerID"]
-                            containerInfo.append({
-                                "id": id.strip('"').split('/')[-1],
-                                "ns_id": ns_id,
-                                "vnf_id": vnf_id,
-                                "kdu_id": kdu_instance,
-                                "node": nodeName,
-                                }
-                            )
+                    if "deletionGracePeriodSeconds" in pod["metadata"] and "deletionTimestamp" in pod["metadata"]:
+                        continue
+                    if "nodeName" in pod["spec"]:
+                        nodeName = pod["spec"]["nodeName"]
+                        containers = pod["status"]["containerStatuses"]
+                        for container in containers:
+                            if "containerID" in container:
+                                id = container["containerID"]
+                                containerInfo.append({
+                                    "id": id.strip('"').split('/')[-1],
+                                    "ns_id": ns_id,
+                                    "vnf_id": vnf_id,
+                                    "kdu_id": kdu_instance,
+                                    "node": nodeName,
+                                    }
+                                )
 
         return containerInfo
     
     def migrate(self, container, node):
         print("MIGRATING CONTAINER {} TO NODE {}".format(container, node))
-        self.nbi_client.ns.migrate_k8s(
-            container["ns_id"],
-            migrate_dict = {
-                "vnfInstanceId": container["vnf_id"],
-                "migrateToHost": node,
-                "kdu": {
-                    "kduId": container["kdu_id"],
-                    "kduCountIndex": 0,
-                }
-            })
-        print("SUCESS!!!!! MIGRATED CONTAINER {} TO NODE {}".format(container, node))
-        #print("returnMsg: {}".format(returnMsg))
+        try:
+            return self.callNBI(
+                self.nbi_client.ns.migrate_k8s,
+                container["ns_id"],
+                migrate_dict = {
+                    "vnfInstanceId": container["vnf_id"],
+                    "migrateToHost": node,
+                    "kdu": {
+                        "kduId": container["kdu_id"],
+                        "kduCountIndex": 0,
+                    }
+                })
+        except Exception as e:
+            print("ERROR: {}".format(e))
+
+    def callNBI(self, func, *args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except OsmHttpException as e:
+            self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
+            print(f"An error occurred: {e}")
+            return func(*args, **kwargs)
+        
+    def getOperationState(self, op_id):
+        return self.callNBI(self.nbi_client.ns.get_op, op_id)["operationState"]
+        

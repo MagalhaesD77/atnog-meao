@@ -13,6 +13,7 @@ class MEAO:
         self.kafka_consumer_conf = kafka_consumer_conf
         self.cpu_load_thresh = cpu_load_thresh
         self.mem_load_thresh = mem_load_thresh
+        self.migratingContainers = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
         print("Node Specs: " + str(self.nodeSpecs))
         self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
@@ -100,8 +101,9 @@ class MEAO:
         metrics = self.calcMetrics(cName, container, values)
 
         res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
-        if res:
-            self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
+        if res and container["id"] not in self.migratingContainers:
+            op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
+            self.migratingContainers[container["id"]] = op_id
 
     def consume_messages(self):
         # Create Kafka consumer
@@ -143,4 +145,10 @@ class MEAO:
         while True:
             time.sleep(self.update_container_ids_freq)
             self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
+            idsToDelete = []
+            for container_id, op_id in self.migratingContainers.items():
+                if self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING":
+                    idsToDelete.append(container_id)
+            for id in idsToDelete:
+                self.migratingContainers.pop(id)
             print("Container Info: " + str(self.containerInfo))
