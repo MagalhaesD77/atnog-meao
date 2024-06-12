@@ -4,8 +4,6 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - OSM_HOSTNAME=10.255.32.88:9999
-      - CPU_LOAD_THRESH=80
-      - MEM_LOAD_THRESH=60
       - KAFKA_TOPIC=k8s-cluster
       - KAFKA_SERVER=10.255.32.88:14000
       - KUBECTL_COMMAND=/usr/local/bin/kubectl

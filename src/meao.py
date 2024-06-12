@@ -6,17 +6,15 @@ from confluent_kafka import Consumer, KafkaError
 import random
 
 class MEAO:
-    def __init__(self, nbi_k8s_connector, update_container_ids_freq, kafka_topic, kafka_consumer_conf, cpu_load_thresh, mem_load_thresh) -> None:
+    def __init__(self, nbi_k8s_connector, update_container_ids_freq, kafka_topic, kafka_consumer_conf) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
         self.update_container_ids_freq = update_container_ids_freq
         self.kafka_topic = kafka_topic
         self.kafka_consumer_conf = kafka_consumer_conf
-        self.cpu_load_thresh = cpu_load_thresh
-        self.mem_load_thresh = mem_load_thresh
         self.migratingContainers = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
         print("Node Specs: " + str(self.nodeSpecs))
-        self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
+        self.containerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
         print("Container Info: " + str(self.containerInfo))
         self.cpu_history = {}
 
@@ -30,8 +28,8 @@ class MEAO:
         consume_thread.start()
         update_thread.start()
 
-    def migrationAlgorithm(self, cpuLoad, memLoad):
-        if cpuLoad > self.cpu_load_thresh or memLoad > self.mem_load_thresh:
+    def migrationAlgorithm(self, container, cpuLoad, memLoad):
+        if cpuLoad > container["cpu_load_thresh"] or memLoad > container["mem_load_thresh"]:
             return True
         return False
 
@@ -100,7 +98,7 @@ class MEAO:
     async def processContainer(self, cName, container, values):
         metrics = self.calcMetrics(cName, container, values)
 
-        res = self.migrationAlgorithm(metrics["cpuLoad"], metrics["memLoad"])
+        res = self.migrationAlgorithm(container, metrics["cpuLoad"], metrics["memLoad"])
         if res and container["id"] not in self.migratingContainers:
             op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
             self.migratingContainers[container["id"]] = op_id
@@ -144,7 +142,7 @@ class MEAO:
     def update_container_ids(self):
         while True:
             time.sleep(self.update_container_ids_freq)
-            self.containerInfo = self.nbi_k8s_connector.getContainerInfo()
+            self.containerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
             idsToDelete = []
             for container_id, op_id in self.migratingContainers.items():
                 if self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING":
