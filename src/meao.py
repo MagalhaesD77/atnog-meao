@@ -29,7 +29,10 @@ class MEAO:
         update_thread.start()
 
     def migrationAlgorithm(self, container, cpuLoad, memLoad):
-        if cpuLoad > container["cpu_load_thresh"] or memLoad > container["mem_load_thresh"]:
+        if (
+            (container["migration_policy"]["cpu_load_thresh"] and cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
+            or (container["migration_policy"]["mem_load_thresh"] and memLoad > container["migration_policy"]["mem_load_thresh"])
+        ):
             return True
         return False
 

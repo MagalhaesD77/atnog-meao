@@ -5,6 +5,7 @@ from meao import MEAO
 def main():
     nbi_k8s_connector = NBIConnector(
         os.environ.get("OSM_HOSTNAME"),
+        os.environ.get("OSS_HOSTNAME"),
         os.environ.get("KUBECTL_COMMAND"),
         os.environ.get("KUBECTL_CONFIG_PATH")
     )
