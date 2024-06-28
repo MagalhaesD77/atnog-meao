@@ -58,12 +58,12 @@ class MEAO:
             return True
         return False
     
-    def distanceMigrationAlgorithm(self, container, meh_dists, migration_factor):
+    def distanceMigrationAlgorithm(self, container, meh_dists):
         current_meh = container["node"]
         current_meh_dist = meh_dists[current_meh]
         targetNodes = []
         for meh, meh_dist in meh_dists.items():
-            if meh != current_meh and meh_dist < migration_factor*current_meh_dist:
+            if meh != current_meh and meh_dist < container["migration_policy"]["mobility-migration-factor"]*current_meh_dist:
                 targetNodes.append(meh)
         print("target nodes: {}".format(targetNodes))
         if len(targetNodes) > 0:
@@ -89,9 +89,7 @@ class MEAO:
         container = self.containerInfo[0]
         ##
 
-        migration_factor = 0.5
-
-        targetNode = self.distanceMigrationAlgorithm(container, values, migration_factor)
+        targetNode = self.distanceMigrationAlgorithm(container, values)
         if targetNode and targetNode in self.nodeSpecs.keys() and container["id"] not in self.migratingContainers:
             op_id = self.nbi_k8s_connector.migrate(container, targetNode)
             self.migratingContainers[container["id"]] = op_id

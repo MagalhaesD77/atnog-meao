@@ -51,16 +51,19 @@ class NBIConnector:
         if not migration_policy["enabled"]:
             return {
                 "cpu_load_thresh": None,
-                "mem_load_thresh": None
+                "mem_load_thresh": None,
+                "mobility-migration-factor": None,
             }
         
         cpu_req = migration_policy["cpu-criteria"]["cpu-threshold"]
         mem_req = migration_policy["mem-criteria"]["mem-threshold"]
+        mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
         cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
         mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
         return {
             "cpu_load_thresh": cpu_load_thresh,
-            "mem_load_thresh": mem_load_thresh
+            "mem_load_thresh": mem_load_thresh,
+            "mobility-migration-factor": mobility_migration_factor,
         }
 
 
