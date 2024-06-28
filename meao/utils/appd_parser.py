@@ -15,6 +15,9 @@ class AppdParser:
             artifact["file"]
             for _, artifact in self.appd.mec_appd.artifacts.get().items()
         ]
+    
+    def get_migration_policy(self):
+        return self.appd.mec_appd.migration_policy.get()
 
     def export_nsd(self, path, filename):
         file_path = path + "/" + filename + ".tar.gz"

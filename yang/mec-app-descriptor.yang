@@ -9,6 +9,7 @@ module mec-app-descriptor {
   import feature-dependency-descriptor { prefix fd; }
   import latency-descriptor { prefix l; }
   import network-policy-descriptor { prefix np; }
+  import migration-policy-descriptor { prefix mp; }
   import service-dependency-descriptor { prefix srv; }
   import service-descriptor { prefix sd; }
   import sw-image-descriptor { prefix si; }
@@ -138,6 +139,12 @@ module mec-app-descriptor {
       uses np:network-policy-descriptor;
       description "If present, it represents the application network policy of carrying the application traffic.";
     }
+
+    container migration-policy {
+      uses mp:migration-policy-descriptor;
+      description "If present, it represents the application monitoring policy";
+    }
+
     list artifacts {
       description "List of artifacts required by the MEC application.";
       key "name";

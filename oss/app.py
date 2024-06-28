@@ -6,6 +6,7 @@ from app_routes import set_routes
 from utils.cherrypy_utils import jsonify_error
 from utils.kafka.callbacks.error_handler import callback as error_handler
 from utils.kafka.callbacks.get_metrics import callback as get_metrics
+from utils.kafka.callbacks.get_distances import callback as get_distances
 from utils.threads import (ContainerInfoThread, KafkaConsumerThread,
                            WebSocketServiceThread)
 
@@ -15,6 +16,7 @@ def main():
 
     KafkaConsumerThread(cherrypy.engine, "responses", error_handler).subscribe()
     KafkaConsumerThread(cherrypy.engine, "k8s-cluster", get_metrics).subscribe()
+    KafkaConsumerThread(cherrypy.engine, "ue-dist", get_distances).subscribe()
     ContainerInfoThread(cherrypy.engine).subscribe()
     WebSocketServiceThread(cherrypy.engine).subscribe()
 

@@ -93,7 +93,7 @@ class AppPkgController:
 
     def delete_app_pkg(self, app_pkg_id):
         """
-        /app_pkgs/{app_pkg_id} (DELETE)
+        /app_pkgs/{app_pkg_id} (POST)
         """
         if not is_valid_id(app_pkg_id) or not DB._exists(app_pkg_id, self.collection):
             raise cherrypy.HTTPError(404, "App package not found")

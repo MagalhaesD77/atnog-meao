@@ -75,7 +75,7 @@ export const TopBar = () => {
                         noWrap
                         sx={{ display: { xs: 'none', sm: 'block' } }}
                     >
-                        MEC Portal
+                        Edge Orchestrator
                     </Typography>
                     <Box sx={{ marginLeft: 'auto' }}>
                         <Button

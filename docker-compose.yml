@@ -8,16 +8,19 @@ services:
       - ./cfs-portal:/usr/app
     environment:
       CHOKIDAR_USEPOLLING: "true"
+    networks:
+      - temp-network
 
   oss:
     build: ./oss
     ports:
       - "${OSS_PORT}:${OSS_PORT}"
       - "${OSS_WS_PORT}:${OSS_WS_PORT}"
+    expose:
+      - "${OSS_PORT}"
     volumes:
       - ./oss:/usr/app
     depends_on:
-      - container-data-api
       - mongo
     environment:
       - OSM_HOSTNAME=${OSM_IP}
@@ -27,6 +30,8 @@ services:
       - MONGO_USER=${MONGO_USER}
       - MONGO_PASSWORD=${MONGO_PASSWORD}
     restart: on-failure
+    networks:
+      - temp-network
 
   meao:
     build: ./meao
@@ -42,17 +47,21 @@ services:
       - MONGO_USER=${MONGO_USER}
       - MONGO_PASSWORD=${MONGO_PASSWORD}
     restart: on-failure
+    networks:
+      - temp-network
 
-  container-data-api:
-    build: ./container-data-api
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - NBI_URL=http://${OSM_IP}/osm
-      - KUBECTL_COMMAND=${KUBECTL_COMMAND}
-      - KUBECTL_CONFIG_PATH=${KUBECTL_CONFIG_PATH}
-      - UPDATE_CONTAINER_IDS_FREQ=${UPDATE_CONTAINER_IDS_FREQ}
+  #container-data-api:
+  #  build: ./container-data-api
+  #  ports:
+  #    - "8000:8000"
+  #  environment:
+  #    - PYTHONUNBUFFERED=1
+  #    - NBI_URL=https://${OSM_IP}/osm
+  #    - KUBECTL_COMMAND=${KUBECTL_COMMAND}
+  #    - KUBECTL_CONFIG_PATH=${KUBECTL_CONFIG_PATH}
+  #    - UPDATE_CONTAINER_IDS_FREQ=${UPDATE_CONTAINER_IDS_FREQ}
+  #  networks:
+  #    - temp-network
 
   mongo:
     image: mongo
@@ -62,6 +71,8 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: "${MONGO_USER}"
       MONGO_INITDB_ROOT_PASSWORD: "${MONGO_PASSWORD}"
+    networks:
+      - temp-network
 
   mongo-express:
     image: mongo-express
@@ -73,6 +84,13 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: "${MONGO_PASSWORD}"
       ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/
       ME_CONFIG_MONGODB_ENABLE_ADMIN: "${MONGO_EXPRESS_ENABLE_ADMIN}"
+    networks:
+      - temp-network
 
 volumes:
   app-mongo-db-data:
+
+networks:
+  temp-network:
+    external: true
+    name: temp-network

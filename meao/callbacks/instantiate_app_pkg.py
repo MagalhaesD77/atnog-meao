@@ -17,6 +17,8 @@ def callback(message):
     if app_pkg_id and vim_id and name and description:
         app_pkg = DB._get(id=app_pkg_id, collection="app_pkgs")
         ns_pkg_id = app_pkg.get("ns_pkg_id")
+        vnf_pkg_id = app_pkg.get("vnf_pkg_id")
+        migration_policy = app_pkg.get("migration_policy")
 
         with CaptureIO() as out:
             get_osm_client().ns.create(
@@ -27,5 +29,20 @@ def callback(message):
                 wait=wait,
             )
         instance_id = out[0]
+        print(get_osm_client().vnf.list(ns=instance_id))
+        vnf_id = get_osm_client().vnf.list(ns=instance_id)[0]["_id"]
+        DB._add(
+            collection="appis",
+            data={
+                "appi_id": instance_id,
+                "vnf_id": vnf_id,
+                "name": name,
+                "description": description,
+                "vim_id": vim_id,
+                "vnf_pkg_id": vnf_pkg_id,
+                "ns_pkg_id": ns_pkg_id,
+                "migration_policy": migration_policy
+            }
+        )
 
         return {"msg_id": message["msg_id"], "status": 201, "instance_id": instance_id}

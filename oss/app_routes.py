@@ -35,7 +35,7 @@ endpoints = {
             "delete_app_pkg",
             "/app_pkgs/{app_pkg_id}",
             "AppPkgController",
-            "DELETE",
+            "POST",
         ),
         (
             "instantiate_app_pkg",
@@ -57,10 +57,22 @@ endpoints = {
             "GET",
         ),
         (
+            "list_mec_appis",
+            "/mec-appis",
+            "AppiController",
+            "GET",
+        ),
+        (
+            "get_mec_appi",
+            "/mec-appis/{appi_id}",
+            "AppiController",
+            "GET",
+        ),
+        (
             "terminate_appi",
             "/appis/{appi_id}",
             "AppiController",
-            "DELETE",
+            "POST",
         ),
         # VIM
         (

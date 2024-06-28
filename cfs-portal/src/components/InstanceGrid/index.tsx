@@ -87,20 +87,36 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                 const data = JSON.parse(event.data);
                 setMetrics((prevMetrics) => {
                     if (prevMetrics && data.appi_id in prevMetrics) {
-                        return {
-                            ...prevMetrics,
-                            [data.appi_id]: {
-                                ...prevMetrics[data.appi_id],
-                                memLoad: data.mem_load,
-                                cpuLoad: data.cpu_load
-                            }
-                        };
+                        if (data.mem_load != undefined && data.cpu_load != undefined) {
+                            return {
+                                ...prevMetrics,
+                                [data.appi_id]: {
+                                    ...prevMetrics[data.appi_id],
+                                    memLoad: data.mem_load,
+                                    cpuLoad: data.cpu_load,
+                                }
+                            };
+                        }
+                        else {
+                            var temp = {
+                                ...prevMetrics,
+                                [data.appi_id]: {
+                                    ...prevMetrics[data.appi_id],
+                                    node: data.node,
+                                    dist: data[data.node]
+                                }
+                            };
+                            console.log(temp)
+                            return temp
+                        }
                     } else {
                         return {
                             ...prevMetrics,
                             [data.appi_id]: {
                                 memLoad: data.mem_load,
-                                cpuLoad: data.cpu_load
+                                cpuLoad: data.cpu_load,
+                                node: data.node,
+                                dist: data[data.node]
                             }
                         };
                     }
@@ -123,7 +139,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
     }
 
     const columns: GridColDef[] = [
-        { field: 'name', headerName: 'Name', width: 300 },
+        { field: 'name', headerName: 'Name', width: 200 },
         ...minimalConfig ? [] : [{ field: 'description', headerName: 'Description', flex: 1 }],
         ...minimalConfig ? [] : [{
             field: 'details',
@@ -149,6 +165,72 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                 </Box >
             )
         }],
+        {
+            field: 'current_meh',
+            headerName: 'Current MEC Host',
+            width: 200,
+            type: 'string',
+            renderCell: (params: any) => {
+                const node = metrics && metrics[params.row.id as string]?.node;
+                return (
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        {node != undefined ? (
+                            <>
+                                <Typography
+                                    variant="body2"
+                                >
+                                    {node}
+                                </Typography>
+                            </>) : (
+                            <Typography variant="body2" textAlign='center'>
+                                -
+                            </Typography>
+                        )}
+                    </Box>
+                )
+            }
+        },
+        {
+            field: 'dist',
+            headerName: 'Distance (km)',
+            width: 100,
+            type: 'number',
+            renderCell: (params: any) => {
+                const dist = metrics && metrics[params.row.id as string]?.dist;
+                return (
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        {dist != undefined ? (
+                            <>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={dist}
+                                    sx={{ width: '100%', height: '30px' }}
+                                    color={getLoadColor(dist)}
+                                />
+                                <Typography
+                                    variant="body2"
+                                    fontWeight='bold'
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        width: '100%',
+                                        textAlign: 'center',
+                                        lineHeight: '30px'
+                                    }}
+                                >
+                                    {dist}
+                                </Typography>
+                            </>) : (
+                            <Typography variant="body2" textAlign='center'>
+                                -
+                            </Typography>
+                        )}
+                    </Box>
+                )
+            }
+        },
         {
             field: 'mem-load',
             headerName: 'Mem (%)',

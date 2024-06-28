@@ -22,6 +22,7 @@ def callback(message):
 
         artifacts = appd_parser.get_artifacts()
         artifacts_data = get_artifacts_data(appd_binary, artifacts)
+        migration_policy = appd_parser.get_migration_policy()
 
         vnfd_file = appd_parser.export_vnfd(get_dir("vnfd"), app_pkg_id, artifacts_data)
         nsd_file = appd_parser.export_nsd(get_dir("nsd"), app_pkg_id)
@@ -45,6 +46,7 @@ def callback(message):
                 data={
                     "vnf_pkg_id": vnf_pkg_id,
                     "ns_pkg_id": ns_pkg_id,
+                    "migration_policy": migration_policy
                 },
             )
         finally:

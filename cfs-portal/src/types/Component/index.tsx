@@ -131,5 +131,7 @@ export type Metrics = {
   [appiID: string]: {
     memLoad: number,
     cpuLoad: number
+    node: string,
+    dist: number,
   }
 }

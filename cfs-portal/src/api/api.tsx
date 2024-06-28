@@ -22,7 +22,7 @@ export const newAppPkg = async (formData: FormData) => {
 }
 
 export const deleteAppPkg = async (id: string) => {
-    return await api.delete(`/app_pkgs/${id}`);
+    return await api.post(`/app_pkgs/${id}`);
 }
 
 export const instantiateAppPkg = async (id: string, formData: FormData) => {
@@ -47,7 +47,7 @@ export const getAppI = async () => {
 }
 
 export const terminateAppI = async (id: string) => {
-    return await api.delete(`/appis/${id}`);
+    return await api.post(`/appis/${id}`);
 }
 
 // VIM
