@@ -7,7 +7,7 @@ RUN wget https://github.com/edenhill/librdkafka/archive/v2.4.0.tar.gz
 RUN tar -xvf v2.4.0.tar.gz && cd librdkafka-2.4.0 && ./configure --prefix /usr && make && make install
 
 RUN pip install --upgrade pip \
-    && pip install requests confluent_kafka pyyaml
+    && pip install requests confluent_kafka pyyaml flask
 
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 RUN chmod +x ./kubectl

@@ -6,10 +6,11 @@ from confluent_kafka import Consumer, KafkaError
 import random
 
 class MEAO:
-    def __init__(self, nbi_k8s_connector, update_container_ids_freq, kafka_topic, kafka_consumer_conf) -> None:
+    def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_distance_kafka_topic, kafka_consumer_conf) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
         self.update_container_ids_freq = update_container_ids_freq
-        self.kafka_topic = kafka_topic
+        self.metrics_collector_kafka_topic = metrics_collector_kafka_topic
+        self.ue_distance_kafka_topic = ue_distance_kafka_topic
         self.kafka_consumer_conf = kafka_consumer_conf
         self.migratingContainers = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
@@ -21,20 +22,79 @@ class MEAO:
 
     def start(self):
         # Create threads
-        consume_thread = threading.Thread(target=self.consume_messages)
+        read_metrics_collector = threading.Thread(target=self.read_metrics_collector)
+        read_ue_distance = threading.Thread(target=self.read_ue_distance)
         update_thread = threading.Thread(target=self.update_container_ids)
 
         # Start threads
-        consume_thread.start()
+        read_metrics_collector.start()
+        read_ue_distance.start()
         update_thread.start()
 
-    def migrationAlgorithm(self, container, cpuLoad, memLoad):
+    def get_node_specs(self, hostname=None):
+        if hostname:
+            if hostname in self.nodeSpecs.keys():
+                return self.nodeSpecs[hostname]
+            else:
+                return None
+        else:
+            return self.nodeSpecs
+
+    def get_container_ids(self):
+        return self.containerInfo
+
+    def update_node_specs(self):
+        self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+
+
+    def resourceMigrationAlgorithm(self, container, cpuLoad, memLoad):
+        if not container["migration_policy"]:
+            return False
+        
         if (
             (container["migration_policy"]["cpu_load_thresh"] and cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
             or (container["migration_policy"]["mem_load_thresh"] and memLoad > container["migration_policy"]["mem_load_thresh"])
         ):
             return True
         return False
+    
+    def distanceMigrationAlgorithm(self, container, meh_dists, migration_factor):
+        current_meh = container["node"]
+        current_meh_dist = meh_dists[current_meh]
+        targetNodes = []
+        for meh, meh_dist in meh_dists.items():
+            if meh != current_meh and meh_dist < migration_factor*current_meh_dist:
+                targetNodes.append(meh)
+        print("target nodes: {}".format(targetNodes))
+        if len(targetNodes) > 0:
+            return min(targetNodes)
+        else:
+            return None
+    
+    async def processContainerMetrics(self, cName, container, values):
+        metrics = self.calcMetrics(cName, container, values)
+
+        res = self.resourceMigrationAlgorithm(container, metrics["cpuLoad"], metrics["memLoad"])
+        if res and container["id"] not in self.migratingContainers:
+            op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
+            self.migratingContainers[container["id"]] = op_id
+    
+    async def processContainerDistances(self, values):
+        print(values)
+
+        ##
+        if len(self.containerInfo) != 1:
+            print("ERROR: Reading container info")
+            return
+        container = self.containerInfo[0]
+        ##
+
+        migration_factor = 0.5
+
+        targetNode = self.distanceMigrationAlgorithm(container, values, migration_factor)
+        if targetNode and targetNode in self.nodeSpecs.keys() and container["id"] not in self.migratingContainers:
+            op_id = self.nbi_k8s_connector.migrate(container, targetNode)
+            self.migratingContainers[container["id"]] = op_id
 
     def calcMetrics(self, cName, container, values):
         #print(json.dumps(values, indent=2))
@@ -98,23 +158,15 @@ class MEAO:
 
         return metrics
     
-    async def processContainer(self, cName, container, values):
-        metrics = self.calcMetrics(cName, container, values)
-
-        res = self.migrationAlgorithm(container, metrics["cpuLoad"], metrics["memLoad"])
-        if res and container["id"] not in self.migratingContainers:
-            op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
-            self.migratingContainers[container["id"]] = op_id
-
-    def consume_messages(self):
+    def read_metrics_collector(self):
         # Create Kafka consumer
         consumer = Consumer(self.kafka_consumer_conf)
 
         # Subscribe to the topic
-        consumer.subscribe([self.kafka_topic])
+        consumer.subscribe([self.metrics_collector_kafka_topic])
 
         try:
-            print("Listening to Kafka....")
+            print("Listening to Kafka on topic {}....".format(self.metrics_collector_kafka_topic))
             while True:
                 
                 # Poll for messages
@@ -136,7 +188,40 @@ class MEAO:
                 cName = values["container_Name"]
                 for container in self.containerInfo:
                     if container["id"] in cName:
-                        asyncio.run(self.processContainer(cName, container, values))
+                        asyncio.run(self.processContainerMetrics(cName, container, values))
+
+        except KeyboardInterrupt:
+            # Stop consumer on keyboard interrupt
+            consumer.close()
+
+    def read_ue_distance(self):
+        # Create Kafka consumer
+        consumer = Consumer(self.kafka_consumer_conf)
+
+        # Subscribe to the topic
+        consumer.subscribe([self.ue_distance_kafka_topic])
+
+        try:
+            print("Listening to Kafka on topic {}....".format(self.ue_distance_kafka_topic))
+            while True:
+                
+                # Poll for messages
+                message = consumer.poll(1.0)
+
+                if message is None:
+                    continue
+                if message.error():
+                    if message.error().code() == KafkaError._PARTITION_EOF:
+                        # End of partition
+                        continue
+                    else:
+                        # Error
+                        print("Error: {}".format(message.error()))
+                        break
+
+                # Process the message
+                values = json.loads(message.value().decode('utf-8'))
+                asyncio.run(self.processContainerDistances(values))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt

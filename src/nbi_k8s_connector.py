@@ -59,9 +59,9 @@ class NBIConnector:
         cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
         mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
         return {
-                "cpu_load_thresh": cpu_load_thresh,
-                "mem_load_thresh": mem_load_thresh
-            }
+            "cpu_load_thresh": cpu_load_thresh,
+            "mem_load_thresh": mem_load_thresh
+        }
 
 
     def getContainerInfo(self, nodeSpecs):
@@ -122,22 +122,24 @@ class NBIConnector:
                         continue
                     if "nodeName" in pod["spec"]:
                         nodeName = pod["spec"]["nodeName"]
+                        migration_policy = None
                         for mec_app in mec_apps:
                             if mec_app["appi_id"] == ns_id and mec_app["vnf_id"] == vnf_id:
                                 migration_policy = self.processMigrationPolicy(mec_app["migration_policy"], nodeSpecs, nodeName)
                                 break
-                        containers = pod["status"]["containerStatuses"]
-                        for container in containers:
-                            if "containerID" in container:
-                                id = container["containerID"]
-                                containerInfo.append({
-                                    "id": id.strip('"').split('/')[-1],
-                                    "ns_id": ns_id,
-                                    "vnf_id": vnf_id,
-                                    "kdu_id": kdu_instance,
-                                    "node": nodeName,
-                                    "migration_policy": migration_policy,
-                                })
+                        if "containerStatuses" in pod["status"]:
+                            containers = pod["status"]["containerStatuses"]
+                            for container in containers:
+                                if "containerID" in container:
+                                    id = container["containerID"]
+                                    containerInfo.append({
+                                        "id": id.strip('"').split('/')[-1],
+                                        "ns_id": ns_id,
+                                        "vnf_id": vnf_id,
+                                        "kdu_id": kdu_instance,
+                                        "node": nodeName,
+                                        "migration_policy": migration_policy,
+                                    })
 
         return containerInfo
     
