@@ -13436,7 +13436,7 @@ class yc_cpu_criteria_mec_app_descriptor__mec_appd_migration_policy_cpu_criteria
 
   YANG Description: Criteria that defines when an application migration is executed due to unmet CPU requirements.
   """
-  __slots__ = ('_path_helper', '_extmethods', '__cpu_threshold','__cpu_window_size','__cpu_sliding_factor','__threshold_time',)
+  __slots__ = ('_path_helper', '_extmethods', '__cpu_threshold','__threshold_time',)
 
   _yang_name = 'cpu-criteria'
   _yang_namespace = 'http://example.com/ns/mec-app-descriptor'
@@ -13449,8 +13449,6 @@ class yc_cpu_criteria_mec_app_descriptor__mec_appd_migration_policy_cpu_criteria
 
     self._extmethods = False
     self.__cpu_threshold = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-threshold", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    self.__cpu_window_size = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-window-size", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    self.__cpu_sliding_factor = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-sliding-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
     self.__threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
     load = kwargs.pop("load", None)
@@ -13517,80 +13515,6 @@ class yc_cpu_criteria_mec_app_descriptor__mec_appd_migration_policy_cpu_criteria
     self.__cpu_threshold = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-threshold", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
 
-  def _get_cpu_window_size(self):
-    """
-    Getter method for cpu_window_size, mapped from YANG variable /mec_appd/migration_policy/cpu_criteria/cpu_window_size (uint32)
-
-    YANG Description: Observation window size to be used for monitoring the CPU usage.
-    """
-    return self.__cpu_window_size
-      
-  def _set_cpu_window_size(self, v, load=False):
-    """
-    Setter method for cpu_window_size, mapped from YANG variable /mec_appd/migration_policy/cpu_criteria/cpu_window_size (uint32)
-    If this variable is read-only (config: false) in the
-    source YANG file, then _set_cpu_window_size is considered as a private
-    method. Backends looking to populate this variable should
-    do so via calling thisObj._set_cpu_window_size() directly.
-
-    YANG Description: Observation window size to be used for monitoring the CPU usage.
-    """
-    if hasattr(v, "_utype"):
-      v = v._utype(v)
-    try:
-      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-window-size", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    except (TypeError, ValueError):
-      raise ValueError({
-          'error-string': """cpu_window_size must be of a type compatible with uint32""",
-          'defined-type': "uint32",
-          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-window-size", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
-        })
-
-    self.__cpu_window_size = t
-    if hasattr(self, '_set'):
-      self._set()
-
-  def _unset_cpu_window_size(self):
-    self.__cpu_window_size = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-window-size", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-
-
-  def _get_cpu_sliding_factor(self):
-    """
-    Getter method for cpu_sliding_factor, mapped from YANG variable /mec_appd/migration_policy/cpu_criteria/cpu_sliding_factor (uint32)
-
-    YANG Description: Sliding factor for observation windows to be used for monitoring the CPU usage.
-    """
-    return self.__cpu_sliding_factor
-      
-  def _set_cpu_sliding_factor(self, v, load=False):
-    """
-    Setter method for cpu_sliding_factor, mapped from YANG variable /mec_appd/migration_policy/cpu_criteria/cpu_sliding_factor (uint32)
-    If this variable is read-only (config: false) in the
-    source YANG file, then _set_cpu_sliding_factor is considered as a private
-    method. Backends looking to populate this variable should
-    do so via calling thisObj._set_cpu_sliding_factor() directly.
-
-    YANG Description: Sliding factor for observation windows to be used for monitoring the CPU usage.
-    """
-    if hasattr(v, "_utype"):
-      v = v._utype(v)
-    try:
-      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-sliding-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    except (TypeError, ValueError):
-      raise ValueError({
-          'error-string': """cpu_sliding_factor must be of a type compatible with uint32""",
-          'defined-type': "uint32",
-          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-sliding-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
-        })
-
-    self.__cpu_sliding_factor = t
-    if hasattr(self, '_set'):
-      self._set()
-
-  def _unset_cpu_sliding_factor(self):
-    self.__cpu_sliding_factor = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="cpu-sliding-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-
-
   def _get_threshold_time(self):
     """
     Getter method for threshold_time, mapped from YANG variable /mec_appd/migration_policy/cpu_criteria/threshold_time (uint32)
@@ -13628,12 +13552,10 @@ class yc_cpu_criteria_mec_app_descriptor__mec_appd_migration_policy_cpu_criteria
     self.__threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
   cpu_threshold = __builtin__.property(_get_cpu_threshold, _set_cpu_threshold)
-  cpu_window_size = __builtin__.property(_get_cpu_window_size, _set_cpu_window_size)
-  cpu_sliding_factor = __builtin__.property(_get_cpu_sliding_factor, _set_cpu_sliding_factor)
   threshold_time = __builtin__.property(_get_threshold_time, _set_threshold_time)
 
 
-  _pyangbind_elements = OrderedDict([('cpu_threshold', cpu_threshold), ('cpu_window_size', cpu_window_size), ('cpu_sliding_factor', cpu_sliding_factor), ('threshold_time', threshold_time), ])
+  _pyangbind_elements = OrderedDict([('cpu_threshold', cpu_threshold), ('threshold_time', threshold_time), ])
 
 
 class yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria(PybindBase):
@@ -13767,6 +13689,137 @@ class yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria
   _pyangbind_elements = OrderedDict([('mem_threshold', mem_threshold), ('threshold_time', threshold_time), ])
 
 
+class yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria(PybindBase):
+  """
+  This class was auto-generated by the PythonClass plugin for PYANG
+  from YANG module mec-app-descriptor - based on the path /mec-appd/migration-policy/mobility-criteria. Each member element of
+  the container is represented as a class variable - with a specific
+  YANG type.
+
+  YANG Description: Criteria that defines when an application migration is executed due to unmet mobility requirements.
+  """
+  __slots__ = ('_path_helper', '_extmethods', '__mobility_migration_factor','__threshold_time',)
+
+  _yang_name = 'mobility-criteria'
+  _yang_namespace = 'http://example.com/ns/mec-app-descriptor'
+
+  _pybind_generated_by = 'container'
+
+  def __init__(self, *args, **kwargs):
+
+    self._path_helper = False
+
+    self._extmethods = False
+    self.__mobility_migration_factor = YANGDynClass(base=RestrictedClassType(base_type=Decimal, restriction_dict={'range': ['0.0 .. 1.0']}), is_leaf=True, yang_name="mobility-migration-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='decimal64', is_config=True)
+    self.__threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+
+    load = kwargs.pop("load", None)
+    if args:
+      if len(args) > 1:
+        raise TypeError("cannot create a YANG container with >1 argument")
+      all_attr = True
+      for e in self._pyangbind_elements:
+        if not hasattr(args[0], e):
+          all_attr = False
+          break
+      if not all_attr:
+        raise ValueError("Supplied object did not have the correct attributes")
+      for e in self._pyangbind_elements:
+        nobj = getattr(args[0], e)
+        if nobj._changed() is False:
+          continue
+        setmethod = getattr(self, "_set_%s" % e)
+        if load is None:
+          setmethod(getattr(args[0], e))
+        else:
+          setmethod(getattr(args[0], e), load=load)
+
+  def _path(self):
+    if hasattr(self, "_parent"):
+      return self._parent._path()+[self._yang_name]
+    else:
+      return ['mec-appd', 'migration-policy', 'mobility-criteria']
+
+  def _get_mobility_migration_factor(self):
+    """
+    Getter method for mobility_migration_factor, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria/mobility_migration_factor (decimal64)
+
+    YANG Description: Factor ranging from 0 to 1 that influences migration likelihood. A value of 0 prevents migration, while a value of 1 makes migration most likely.
+    """
+    return self.__mobility_migration_factor
+      
+  def _set_mobility_migration_factor(self, v, load=False):
+    """
+    Setter method for mobility_migration_factor, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria/mobility_migration_factor (decimal64)
+    If this variable is read-only (config: false) in the
+    source YANG file, then _set_mobility_migration_factor is considered as a private
+    method. Backends looking to populate this variable should
+    do so via calling thisObj._set_mobility_migration_factor() directly.
+
+    YANG Description: Factor ranging from 0 to 1 that influences migration likelihood. A value of 0 prevents migration, while a value of 1 makes migration most likely.
+    """
+    if hasattr(v, "_utype"):
+      v = v._utype(v)
+    try:
+      t = YANGDynClass(v,base=RestrictedClassType(base_type=Decimal, restriction_dict={'range': ['0.0 .. 1.0']}), is_leaf=True, yang_name="mobility-migration-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='decimal64', is_config=True)
+    except (TypeError, ValueError):
+      raise ValueError({
+          'error-string': """mobility_migration_factor must be of a type compatible with decimal64""",
+          'defined-type': "decimal64",
+          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=Decimal, restriction_dict={'range': ['0.0 .. 1.0']}), is_leaf=True, yang_name="mobility-migration-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='decimal64', is_config=True)""",
+        })
+
+    self.__mobility_migration_factor = t
+    if hasattr(self, '_set'):
+      self._set()
+
+  def _unset_mobility_migration_factor(self):
+    self.__mobility_migration_factor = YANGDynClass(base=RestrictedClassType(base_type=Decimal, restriction_dict={'range': ['0.0 .. 1.0']}), is_leaf=True, yang_name="mobility-migration-factor", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='decimal64', is_config=True)
+
+
+  def _get_threshold_time(self):
+    """
+    Getter method for threshold_time, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria/threshold_time (uint32)
+
+    YANG Description: The duration for which the condition can be unmet before application migration is executed.
+    """
+    return self.__threshold_time
+      
+  def _set_threshold_time(self, v, load=False):
+    """
+    Setter method for threshold_time, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria/threshold_time (uint32)
+    If this variable is read-only (config: false) in the
+    source YANG file, then _set_threshold_time is considered as a private
+    method. Backends looking to populate this variable should
+    do so via calling thisObj._set_threshold_time() directly.
+
+    YANG Description: The duration for which the condition can be unmet before application migration is executed.
+    """
+    if hasattr(v, "_utype"):
+      v = v._utype(v)
+    try:
+      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+    except (TypeError, ValueError):
+      raise ValueError({
+          'error-string': """threshold_time must be of a type compatible with uint32""",
+          'defined-type': "uint32",
+          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
+        })
+
+    self.__threshold_time = t
+    if hasattr(self, '_set'):
+      self._set()
+
+  def _unset_threshold_time(self):
+    self.__threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+
+  mobility_migration_factor = __builtin__.property(_get_mobility_migration_factor, _set_mobility_migration_factor)
+  threshold_time = __builtin__.property(_get_threshold_time, _set_threshold_time)
+
+
+  _pyangbind_elements = OrderedDict([('mobility_migration_factor', mobility_migration_factor), ('threshold_time', threshold_time), ])
+
+
 class yc_migration_policy_mec_app_descriptor__mec_appd_migration_policy(PybindBase):
   """
   This class was auto-generated by the PythonClass plugin for PYANG
@@ -13776,7 +13829,7 @@ class yc_migration_policy_mec_app_descriptor__mec_appd_migration_policy(PybindBa
 
   YANG Description: If present, it represents the application monitoring policy
   """
-  __slots__ = ('_path_helper', '_extmethods', '__id','__name','__enabled','__migration_operation_type','__cpu_criteria','__mem_criteria',)
+  __slots__ = ('_path_helper', '_extmethods', '__id','__name','__enabled','__migration_operation_type','__cpu_criteria','__mem_criteria','__mobility_criteria',)
 
   _yang_name = 'migration-policy'
   _yang_namespace = 'http://example.com/ns/mec-app-descriptor'
@@ -13794,6 +13847,7 @@ class yc_migration_policy_mec_app_descriptor__mec_appd_migration_policy(PybindBa
     self.__migration_operation_type = YANGDynClass(base=RestrictedClassType(base_type=six.text_type,                                     restriction_type="dict_key",                                     restriction_arg={'AND': {'value': 1}, 'OR': {'value': 2}},), default=six.text_type("OR"), is_leaf=True, yang_name="migration-operation-type", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='migration-criteria-operation', is_config=True)
     self.__cpu_criteria = YANGDynClass(base=yc_cpu_criteria_mec_app_descriptor__mec_appd_migration_policy_cpu_criteria, is_container='container', yang_name="cpu-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
     self.__mem_criteria = YANGDynClass(base=yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria, is_container='container', yang_name="mem-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
+    self.__mobility_criteria = YANGDynClass(base=yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria, is_container='container', yang_name="mobility-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
 
     load = kwargs.pop("load", None)
     if args:
@@ -14047,15 +14101,53 @@ class yc_migration_policy_mec_app_descriptor__mec_appd_migration_policy(PybindBa
   def _unset_mem_criteria(self):
     self.__mem_criteria = YANGDynClass(base=yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria, is_container='container', yang_name="mem-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
 
+
+  def _get_mobility_criteria(self):
+    """
+    Getter method for mobility_criteria, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria (container)
+
+    YANG Description: Criteria that defines when an application migration is executed due to unmet mobility requirements.
+    """
+    return self.__mobility_criteria
+      
+  def _set_mobility_criteria(self, v, load=False):
+    """
+    Setter method for mobility_criteria, mapped from YANG variable /mec_appd/migration_policy/mobility_criteria (container)
+    If this variable is read-only (config: false) in the
+    source YANG file, then _set_mobility_criteria is considered as a private
+    method. Backends looking to populate this variable should
+    do so via calling thisObj._set_mobility_criteria() directly.
+
+    YANG Description: Criteria that defines when an application migration is executed due to unmet mobility requirements.
+    """
+    if hasattr(v, "_utype"):
+      v = v._utype(v)
+    try:
+      t = YANGDynClass(v,base=yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria, is_container='container', yang_name="mobility-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
+    except (TypeError, ValueError):
+      raise ValueError({
+          'error-string': """mobility_criteria must be of a type compatible with container""",
+          'defined-type': "container",
+          'generated-type': """YANGDynClass(base=yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria, is_container='container', yang_name="mobility-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)""",
+        })
+
+    self.__mobility_criteria = t
+    if hasattr(self, '_set'):
+      self._set()
+
+  def _unset_mobility_criteria(self):
+    self.__mobility_criteria = YANGDynClass(base=yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria, is_container='container', yang_name="mobility-criteria", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, extensions=None, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='container', is_config=True)
+
   id = __builtin__.property(_get_id, _set_id)
   name = __builtin__.property(_get_name, _set_name)
   enabled = __builtin__.property(_get_enabled, _set_enabled)
   migration_operation_type = __builtin__.property(_get_migration_operation_type, _set_migration_operation_type)
   cpu_criteria = __builtin__.property(_get_cpu_criteria, _set_cpu_criteria)
   mem_criteria = __builtin__.property(_get_mem_criteria, _set_mem_criteria)
+  mobility_criteria = __builtin__.property(_get_mobility_criteria, _set_mobility_criteria)
 
 
-  _pyangbind_elements = OrderedDict([('id', id), ('name', name), ('enabled', enabled), ('migration_operation_type', migration_operation_type), ('cpu_criteria', cpu_criteria), ('mem_criteria', mem_criteria), ])
+  _pyangbind_elements = OrderedDict([('id', id), ('name', name), ('enabled', enabled), ('migration_operation_type', migration_operation_type), ('cpu_criteria', cpu_criteria), ('mem_criteria', mem_criteria), ('mobility_criteria', mobility_criteria), ])
 
 
 class yc_artifacts_mec_app_descriptor__mec_appd_artifacts(PybindBase):

@@ -66,19 +66,9 @@ module migration-policy-descriptor {
         description "Value above which application migration is executed ().";
         type uint32;
       }
-
-      leaf cpu-window-size {
-        description "Observation window size to be used for monitoring the CPU usage.";
-        type uint32;
-      }
-
-      leaf cpu-sliding-factor {
-        description "Sliding factor for observation windows to be used for monitoring the CPU usage.";
-        type uint32;
-      }
       
       leaf threshold-time {
-        description "The duration for which the condition can be unmet before application migration is executed.";
+        description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }
     }
@@ -92,7 +82,24 @@ module migration-policy-descriptor {
       }
       
       leaf threshold-time {
-        description "The duration for which the condition can be unmet before application migration is executed.";
+        description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
+        type uint32;
+      }
+    }
+
+    container mobility-criteria {
+      description "Criteria that defines when an application migration is executed due to unmet mobility requirements.";
+
+      leaf mobility-migration-factor {
+        description "Factor ranging from 0 to 1 that influences migration likelihood. A value of 0 prevents migration, while a value of 1 makes migration most likely.";
+         type decimal64 {
+          fraction-digits 2;
+          range "0.0 .. 1.0";
+        }
+      }
+      
+      leaf threshold-time {
+        description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }
     }

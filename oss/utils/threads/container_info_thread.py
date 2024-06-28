@@ -46,7 +46,6 @@ def get_containers_info():
                     idsToDelete.append(container_id)
             for id in idsToDelete:
                 del containers[id]
-            print(containers)
 
         except Exception as e:
             pass

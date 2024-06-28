@@ -6,6 +6,7 @@ from utils.db import DB
 from utils.exceptions import handle_exceptions
 from utils.file_management import *
 from utils.osm import get_osm_client
+from decimal import Decimal, ROUND_HALF_UP
 
 
 @handle_exceptions
@@ -40,6 +41,12 @@ def callback(message):
                 get_osm_client().vnfd.delete(vnf_pkg_id)
                 raise e
 
+            if (
+                migration_policy
+                and "mobility-criteria" in migration_policy
+                and "mobility-migration-factor" in migration_policy["mobility-criteria"]
+            ):
+                migration_policy["mobility-criteria"]["mobility-migration-factor"] = float(Decimal(migration_policy["mobility-criteria"]["mobility-migration-factor"]).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP))
             DB._update(
                 id=app_pkg_id,
                 collection="app_pkgs",
