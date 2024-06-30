@@ -103,7 +103,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                                 [data.appi_id]: {
                                     ...prevMetrics[data.appi_id],
                                     node: data.node,
-                                    dist: data[data.node]
+                                    lat: data[data.node]
                                 }
                             };
                             console.log(temp)
@@ -116,7 +116,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                                 memLoad: data.mem_load,
                                 cpuLoad: data.cpu_load,
                                 node: data.node,
-                                dist: data[data.node]
+                                lat: data[data.node]
                             }
                         };
                     }
@@ -191,21 +191,21 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
             }
         },
         {
-            field: 'dist',
-            headerName: 'Distance (km)',
+            field: 'lat',
+            headerName: 'Latency (ms)',
             width: 100,
             type: 'number',
             renderCell: (params: any) => {
-                const dist = metrics && metrics[params.row.id as string]?.dist;
+                const lat = metrics && metrics[params.row.id as string]?.lat;
                 return (
                     <Box sx={{ position: 'relative', width: '100%' }}>
-                        {dist != undefined ? (
+                        {lat != undefined ? (
                             <>
                                 <LinearProgress
                                     variant="determinate"
-                                    value={dist}
+                                    value={lat}
                                     sx={{ width: '100%', height: '30px' }}
-                                    color={getLoadColor(dist)}
+                                    color={getLoadColor(lat)}
                                 />
                                 <Typography
                                     variant="body2"
@@ -220,7 +220,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                                         lineHeight: '30px'
                                     }}
                                 >
-                                    {dist}
+                                    {lat}
                                 </Typography>
                             </>) : (
                             <Typography variant="body2" textAlign='center'>

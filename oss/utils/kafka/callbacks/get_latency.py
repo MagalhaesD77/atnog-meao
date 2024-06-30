@@ -1,5 +1,5 @@
 from ...threads.container_info_thread import containers
-from ...threads.websocket_service_thread import dists_queue
+from ...threads.websocket_service_thread import lat_queue
 
 
 def callback(data):
@@ -7,4 +7,4 @@ def callback(data):
         data["node"] = containers[container_id]["node"]
         data["appi_id"] = containers[container_id]["ns"]
         break
-    dists_queue.put(data)
+    lat_queue.put(data)

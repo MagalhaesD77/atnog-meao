@@ -132,6 +132,6 @@ export type Metrics = {
     memLoad: number,
     cpuLoad: number
     node: string,
-    dist: number,
+    lat: number,
   }
 }
