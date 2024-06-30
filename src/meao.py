@@ -6,11 +6,11 @@ from confluent_kafka import Consumer, KafkaError
 import random
 
 class MEAO:
-    def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_distance_kafka_topic, kafka_consumer_conf) -> None:
+    def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_latency_kafka_topic, kafka_consumer_conf) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
         self.update_container_ids_freq = update_container_ids_freq
         self.metrics_collector_kafka_topic = metrics_collector_kafka_topic
-        self.ue_distance_kafka_topic = ue_distance_kafka_topic
+        self.ue_latency_kafka_topic = ue_latency_kafka_topic
         self.kafka_consumer_conf = kafka_consumer_conf
         self.migratingContainers = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
@@ -23,12 +23,12 @@ class MEAO:
     def start(self):
         # Create threads
         read_metrics_collector = threading.Thread(target=self.read_metrics_collector)
-        read_ue_distance = threading.Thread(target=self.read_ue_distance)
+        read_ue_latency = threading.Thread(target=self.read_ue_latency)
         update_thread = threading.Thread(target=self.update_container_ids)
 
         # Start threads
         read_metrics_collector.start()
-        read_ue_distance.start()
+        read_ue_latency.start()
         update_thread.start()
 
     def get_node_specs(self, hostname=None):
@@ -58,12 +58,15 @@ class MEAO:
             return True
         return False
     
-    def distanceMigrationAlgorithm(self, container, meh_dists):
+    def latencyMigrationAlgorithm(self, container, meh_lats):
+        if not container["migration_policy"]:
+            return False
+        
         current_meh = container["node"]
-        current_meh_dist = meh_dists[current_meh]
+        current_meh_lat = meh_lats[current_meh]
         targetNodes = []
-        for meh, meh_dist in meh_dists.items():
-            if meh != current_meh and meh_dist < container["migration_policy"]["mobility-migration-factor"]*current_meh_dist:
+        for meh, meh_lat in meh_lats.items():
+            if container["migration_policy"]["mobility-migration-factor"] and meh != current_meh and meh_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
                 targetNodes.append(meh)
         print("target nodes: {}".format(targetNodes))
         if len(targetNodes) > 0:
@@ -79,17 +82,17 @@ class MEAO:
             op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
             self.migratingContainers[container["id"]] = op_id
     
-    async def processContainerDistances(self, values):
+    async def processContainerLatencies(self, values):
         print(values)
 
         ##
         if len(self.containerInfo) != 1:
-            print("ERROR: Reading container info")
+            print("INFO: No containers being monitored")
             return
         container = self.containerInfo[0]
         ##
 
-        targetNode = self.distanceMigrationAlgorithm(container, values)
+        targetNode = self.latencyMigrationAlgorithm(container, values)
         if targetNode and targetNode in self.nodeSpecs.keys() and container["id"] not in self.migratingContainers:
             op_id = self.nbi_k8s_connector.migrate(container, targetNode)
             self.migratingContainers[container["id"]] = op_id
@@ -192,15 +195,15 @@ class MEAO:
             # Stop consumer on keyboard interrupt
             consumer.close()
 
-    def read_ue_distance(self):
+    def read_ue_latency(self):
         # Create Kafka consumer
         consumer = Consumer(self.kafka_consumer_conf)
 
         # Subscribe to the topic
-        consumer.subscribe([self.ue_distance_kafka_topic])
+        consumer.subscribe([self.ue_latency_kafka_topic])
 
         try:
-            print("Listening to Kafka on topic {}....".format(self.ue_distance_kafka_topic))
+            print("Listening to Kafka on topic {}....".format(self.ue_latency_kafka_topic))
             while True:
                 
                 # Poll for messages
@@ -219,7 +222,7 @@ class MEAO:
 
                 # Process the message
                 values = json.loads(message.value().decode('utf-8'))
-                asyncio.run(self.processContainerDistances(values))
+                asyncio.run(self.processContainerLatencies(values))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt

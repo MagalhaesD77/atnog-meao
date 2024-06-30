@@ -147,7 +147,9 @@ class NBIConnector:
         return containerInfo
     
     def migrate(self, container, node):
-        print("MIGRATING CONTAINER {} TO NODE {}".format(container, node))
+        print("MIGRATING CONTAINER TO NODE {}".format(node))
+        print("CONTAINER ID: {}".format(container["id"]))
+        print("NETWORK SERVICE ID: {}".format(container["ns_id"]))
         try:
             return self.callNBI(
                 self.nbi_client.ns.migrate_k8s,

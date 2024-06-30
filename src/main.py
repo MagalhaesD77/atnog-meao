@@ -43,7 +43,7 @@ def main():
         nbi_k8s_connector,
         int(os.environ.get("UPDATE_CONTAINER_IDS_FREQ")),
         os.environ.get("METRICS_COLLECTOR_KAFKA_TOPIC"),
-        os.environ.get("UE_DISTANCE_KAFKA_TOPIC"),
+        os.environ.get("UE_LATENCY_KAFKA_TOPIC"),
         {
             'bootstrap.servers': os.environ.get("KAFKA_SERVER"),
             'group.id': 'monitoring',
