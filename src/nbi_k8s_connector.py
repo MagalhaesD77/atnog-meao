@@ -232,5 +232,9 @@ class NBIConnector:
         return info
         
     def getOperationState(self, op_id):
-        return self.callNBI(self.nbi_client.ns.get_op, op_id)["operationState"]
+        try:
+            return self.callNBI(self.nbi_client.ns.get_op, op_id)["operationState"]
+        except Exception as e:
+            print("Error finding nslcmop:", e)
+            return "NOT FOUND"
         

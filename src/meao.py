@@ -143,7 +143,6 @@ class MEAO:
         else:        
             self.containerInfo[cName]["cpuLoad"] = metrics["cpuLoad"]
             self.containerInfo[cName]["memLoad"] = metrics["memLoad"]
-            print(metrics)
             self.migrationAlgorithm(cName)
     
     async def processContainerLatencies(self, cName, values):
@@ -210,7 +209,19 @@ class MEAO:
         }
 
         return metrics
-    
+
+    def updateDict(self, oldDict, updatedDict):
+        keys_to_keep_nodeSpecs = set(oldDict.keys()).intersection(updatedDict.keys())
+        keys_to_remove_nodeSpecs = set(oldDict.keys()) - keys_to_keep_nodeSpecs
+        for key in keys_to_remove_nodeSpecs:
+            oldDict.pop(key)
+        
+        keys_to_add_nodeSpecs = set(updatedDict.keys()) - set(oldDict.keys())
+        for key in keys_to_add_nodeSpecs:
+            oldDict[key] = updatedDict[key]
+
+        return oldDict
+
     def read_metrics_collector(self):
         # Create Kafka consumer
         consumer = Consumer(self.kafka_consumer_conf)
@@ -242,15 +253,13 @@ class MEAO:
                 if cName == "/":
                     machine_name = values["machine_name"]
                     if not any(machine_name in nodeInfo.values() for node, nodeInfo in self.nodeSpecs.items()):
-                        self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
-                        print("Updated Node Specs: " + str(self.nodeSpecs))
+                        continue
                     for node, nodeInfo in self.nodeSpecs.items():
-                        if machine_name in nodeInfo.values():
+                        if nodeInfo["cadvisor"] == machine_name:
                             asyncio.run(self.processContainerMetrics(node, values))
                             break
                 for containerName, container in self.containerInfo.items():
                     if containerName in cName:
-                        print(values["timestamp"])
                         asyncio.run(self.processContainerMetrics(containerName, values, container))
 
         except KeyboardInterrupt:
@@ -295,18 +304,19 @@ class MEAO:
         while True:
             time.sleep(self.update_container_ids_freq)
 
+            # Update node specs
+            updatedNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+            if not updatedNodeSpecs:
+                self.nodeSpecs = None
+            else:
+                self.nodeSpecs = self.updateDict(self.nodeSpecs, updatedNodeSpecs)
+
             # Update container info
             updatedContainerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
-            
-            # Synchronize keys in self.containerInfo
-            keys_to_keep = set(self.containerInfo.keys()).intersection(updatedContainerInfo.keys())
-            keys_to_remove = set(self.containerInfo.keys()) - keys_to_keep
-            for key in keys_to_remove:
-                self.containerInfo.pop(key)
-            
-            keys_to_add = set(updatedContainerInfo.keys()) - set(self.containerInfo.keys())
-            for key in keys_to_add:
-                self.containerInfo[key] = updatedContainerInfo[key]
+            if not updatedContainerInfo:
+                self.containerInfo = None
+            else:
+                self.containerInfo = self.updateDict(self.containerInfo, updatedContainerInfo)
             
             # Clean up migrating containers
             idsToDelete = [
