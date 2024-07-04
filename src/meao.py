@@ -46,71 +46,117 @@ class MEAO:
     def update_node_specs(self):
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
 
-
-    def resourceMigrationAlgorithm(self, container, cpuLoad, memLoad):
-        if not container["migration_policy"]:
-            return False
-        
+    def migrationAlgorithm(self, cName):
+        container = self.containerInfo[cName]
+        currentNode = container["node"]
         if (
-            (container["migration_policy"]["cpu_load_thresh"] and cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
-            or (container["migration_policy"]["mem_load_thresh"] and memLoad > container["migration_policy"]["mem_load_thresh"])
+            not container["migration_policy"] 
+            or cName in self.migratingContainers
+            or "cpuLoad" not in self.nodeSpecs[currentNode]
+            or "memLoad" not in self.nodeSpecs[currentNode]
         ):
-            return True
-        return False
-    
-    def latencyMigrationAlgorithm(self, container, meh_lats):
-        if not container["migration_policy"]:
-            return False
-        
-        current_meh = container["node"]
-        current_meh_lat = meh_lats[current_meh]
-        targetNodes = []
-        for meh, meh_lat in meh_lats.items():
-            if container["migration_policy"]["mobility-migration-factor"] and meh != current_meh and meh_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
-                targetNodes.append(meh)
-        print("target nodes: {}".format(targetNodes))
-        if len(targetNodes) > 0:
-            return min(targetNodes)
-        else:
             return None
+        
+        resourceTargetNode = None
+        latencyTargetNode = None
+
+        if (
+            (container["migration_policy"]["cpu_load_thresh"] and "cpuLoad" in container)
+            or (container["migration_policy"]["mem_load_thresh"] and "memLoad" in container)
+        ):
+            resourceTargetNode = self.resourceMigrationAlgorithm(container)
+        if container["migration_policy"]["mobility-migration-factor"] and "ue-lats" in container:
+            latencyTargetNode = self.latencyMigrationAlgorithm(container)
+
+        finalTargetNode = None
+        if (
+            (resourceTargetNode and resourceTargetNode in self.nodeSpecs.keys())
+            and (latencyTargetNode and latencyTargetNode in self.nodeSpecs.keys())
+        ):
+            if resourceTargetNode == latencyTargetNode:
+                finalTargetNode = resourceTargetNode
+        elif resourceTargetNode and resourceTargetNode in self.nodeSpecs.keys():
+            finalTargetNode = resourceTargetNode
+        elif latencyTargetNode and latencyTargetNode in self.nodeSpecs.keys():
+            finalTargetNode = latencyTargetNode
+
+        if finalTargetNode:
+            op_id = self.nbi_k8s_connector.migrate(cName, container, finalTargetNode)
+            self.migratingContainers[cName] = op_id
+
+    def min_usage_node(self):
+        min_usage_node = None
+        min_usage = 0
+        for node, nodeInfo in self.nodeSpecs.items():
+            if "cpuLoad" not in nodeInfo or "memLoad" not in nodeInfo:
+                continue
+            usage = nodeInfo["cpuLoad"] + nodeInfo["memLoad"]
+            if not min_usage_node or usage < min_usage:
+                min_usage_node = node
+                min_usage = usage
+        return min_usage_node, min_usage
+
+    def resourceMigrationAlgorithm(self, container):
+        cpuLoad = container["cpuLoad"]
+        memLoad = container["memLoad"]
+        
+        # TEM DE SE MUDAR ESTA CONDIÇÃO
+        if (
+            (cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
+            or (memLoad > container["migration_policy"]["mem_load_thresh"])
+        ):
+            usage = self.nodeSpecs[container["node"]]["cpuLoad"] + self.nodeSpecs[container["node"]]["memLoad"]
+            min_usage_node, min_usage = self.min_usage_node()
+            if min_usage_node != container["node"] and min_usage < usage:
+                return min_usage_node
+        
+        return None
     
-    async def processContainerMetrics(self, cName, container, values):
-        metrics = self.calcMetrics(cName, container, values)
+    def min_lat_MEH(self, ue_lats):
+        min_lat_meh = None
+        min_lat = 0
+        for meh, meh_lat in ue_lats.items():
+            if not min_lat_meh or meh_lat < min_lat:
+                min_lat_meh = meh
+                min_lat = meh_lat
+        return min_lat_meh, min_lat
+        
+    def latencyMigrationAlgorithm(self, container):
+        ue_lats = container["ue-lats"]
 
-        res = self.resourceMigrationAlgorithm(container, metrics["cpuLoad"], metrics["memLoad"])
-        if res and container["id"] not in self.migratingContainers:
-            op_id = self.nbi_k8s_connector.migrate(container, random.choice(list(self.nodeSpecs.keys())))
-            self.migratingContainers[container["id"]] = op_id
+        current_meh = container["node"]
+        current_meh_lat = ue_lats[current_meh]
+
+        min_lat_meh, min_lat = self.min_lat_MEH(ue_lats)
+
+        if min_lat_meh != current_meh and min_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
+            return min_lat_meh
+        
+        return None
     
-    async def processContainerLatencies(self, values):
-        print(values)
+    async def processContainerMetrics(self, cName, values, container=None):
+        metrics = self.calcMetrics(cName, values, container)
 
-        ##
-        if len(self.containerInfo) != 1:
-            print("INFO: No containers being monitored")
-            return
-        container = self.containerInfo[0]
-        ##
+        if not container:
+            self.nodeSpecs[cName]["cpuLoad"] = metrics["cpuLoad"]
+            self.nodeSpecs[cName]["memLoad"] = metrics["memLoad"]
+        else:        
+            self.containerInfo[cName]["cpuLoad"] = metrics["cpuLoad"]
+            self.containerInfo[cName]["memLoad"] = metrics["memLoad"]
+            print(metrics)
+            self.migrationAlgorithm(cName)
+    
+    async def processContainerLatencies(self, cName, values):
+        self.containerInfo[cName]["ue-lats"] = values
+        self.migrationAlgorithm(cName)
 
-        targetNode = self.latencyMigrationAlgorithm(container, values)
-        if targetNode and targetNode in self.nodeSpecs.keys() and container["id"] not in self.migratingContainers:
-            op_id = self.nbi_k8s_connector.migrate(container, targetNode)
-            self.migratingContainers[container["id"]] = op_id
-
-    def calcMetrics(self, cName, container, values):
-        #print(json.dumps(values, indent=2))
-
-        print("-------------------------------------------------------")
-        print("Container ID:", container["id"])
-        print("Timestamp:", values["timestamp"])
-
-
-        # Memory
-        memUsage = values["container_stats"]["memory"]["usage"]
-        #print("Memory Usage:", memUsage)
-        memLoad = (memUsage/(self.nodeSpecs[container["node"]]["memory_size"]*pow(1024,3))) * 100
-        print("Memory Load:", memLoad)
-
+    def calcMetrics(self, cName, values, container=None, silent=True):
+        if container:
+            memory_size = (self.nodeSpecs[container["node"]]["memory_size"]*pow(1024,3))
+            num_cpu_cores = self.nodeSpecs[container["node"]]["num_cpu_cores"]
+        else:
+            memory_size = (self.nodeSpecs[cName]["memory_size"]*pow(1024,3))
+            num_cpu_cores = self.nodeSpecs[cName]["num_cpu_cores"]
 
         # CPU
         timestampParts = values["timestamp"].split(':')
@@ -131,26 +177,32 @@ class MEAO:
             #print("System Delta", systemDelta)
 
             if systemDelta > 0.0 and cpuDelta >= 0.0:
-                cpuLoad = ((cpuDelta / systemDelta) / self.nodeSpecs[container["node"]]["num_cpu_cores"]) * 100
-                print("CPU Load:", cpuLoad)
+                cpuLoad = ((cpuDelta / systemDelta) / num_cpu_cores) * 100
                 if cpuLoad > 100:
-                    print(self.cpu_history[cName]["previousCPU"])
-                    print(currentCPU)
-                    print(cpuDelta)
-                    print(self.cpu_history[cName]["previousSystem"])
-                    print(timestamp)
-                    print(systemDelta)
-                    print(cpuLoad)
                     cpuLoad = 0
         self.cpu_history[cName]["previousCPU"] = currentCPU
         self.cpu_history[cName]["previousSystem"] = timestamp
+
+        # Memory
+        memUsage = values["container_stats"]["memory"]["usage"]
+        #print("Memory Usage:", memUsage)
+        memLoad = (memUsage/memory_size) * 100
 
         #print("Network RX Bytes:", values["container_stats"]["network"]["rx_bytes"])
         #print("Network TX Bytes:", values["container_stats"]["network"]["tx_bytes"])
         #if values["container_stats"]["diskio"] != {}:
             #print("Disk IO Read:", values["container_stats"]["diskio"]["io_service_bytes"][0]["stats"]["Read"])
             #print("Disk IO Write:", values["container_stats"]["diskio"]["io_service_bytes"][0]["stats"]["Write"])
-        print("-------------------------------------------------------")
+
+        if not silent:
+            print("-------------------------------------------------------")
+            #print(json.dumps(values, indent=2))
+            print("Container ID:", cName)
+            print("Machine Name:", values["machine_name"])
+            print("Timestamp:", values["timestamp"])
+            print("CPU Load:", cpuLoad)
+            print("Memory Load:", memLoad)
+            print("-------------------------------------------------------")
 
         metrics = {
             "cpuLoad": cpuLoad,
@@ -187,9 +239,19 @@ class MEAO:
                 # Process the message
                 values = json.loads(message.value().decode('utf-8'))
                 cName = values["container_Name"]
-                for container in self.containerInfo:
-                    if container["id"] in cName:
-                        asyncio.run(self.processContainerMetrics(cName, container, values))
+                if cName == "/":
+                    machine_name = values["machine_name"]
+                    if not any(machine_name in nodeInfo.values() for node, nodeInfo in self.nodeSpecs.items()):
+                        self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+                        print("Updated Node Specs: " + str(self.nodeSpecs))
+                    for node, nodeInfo in self.nodeSpecs.items():
+                        if machine_name in nodeInfo.values():
+                            asyncio.run(self.processContainerMetrics(node, values))
+                            break
+                for containerName, container in self.containerInfo.items():
+                    if containerName in cName:
+                        print(values["timestamp"])
+                        asyncio.run(self.processContainerMetrics(containerName, values, container))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -222,7 +284,8 @@ class MEAO:
 
                 # Process the message
                 values = json.loads(message.value().decode('utf-8'))
-                asyncio.run(self.processContainerLatencies(values))
+                for containerName in self.containerInfo.keys():
+                    asyncio.run(self.processContainerLatencies(containerName, values))
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -231,11 +294,28 @@ class MEAO:
     def update_container_ids(self):
         while True:
             time.sleep(self.update_container_ids_freq)
-            self.containerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
-            idsToDelete = []
-            for container_id, op_id in self.migratingContainers.items():
-                if self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING":
-                    idsToDelete.append(container_id)
-            for id in idsToDelete:
-                self.migratingContainers.pop(id)
-            print("Container Info: " + str(self.containerInfo))
+
+            # Update container info
+            updatedContainerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
+            
+            # Synchronize keys in self.containerInfo
+            keys_to_keep = set(self.containerInfo.keys()).intersection(updatedContainerInfo.keys())
+            keys_to_remove = set(self.containerInfo.keys()) - keys_to_keep
+            for key in keys_to_remove:
+                self.containerInfo.pop(key)
+            
+            keys_to_add = set(updatedContainerInfo.keys()) - set(self.containerInfo.keys())
+            for key in keys_to_add:
+                self.containerInfo[key] = updatedContainerInfo[key]
+            
+            # Clean up migrating containers
+            idsToDelete = [
+                container_id 
+                for container_id, op_id in self.migratingContainers.items() 
+                if self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
+            ]
+            
+            for container_id in idsToDelete:
+                self.migratingContainers.pop(container_id)
+            print("Container Info: " + json.dumps(self.containerInfo, indent=2))
+            print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))

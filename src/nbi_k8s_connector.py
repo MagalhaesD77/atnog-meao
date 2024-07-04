@@ -3,6 +3,7 @@ import subprocess
 import yaml
 import requests
 import warnings
+import time
 from osmclient import client
 from osmclient.common.exceptions import ClientException, OsmHttpException
 
@@ -14,13 +15,21 @@ class NBIConnector:
         self.kubectl_config_path = kubectl_config_path
         self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
         self.oss_hostname = oss_hostname
+        kubectl_config = None
+        while not kubectl_config:
+            kubectl_config = self.getKubeConfig()
+        with open(self.kubectl_config_path, 'w') as file:
+            yaml.dump(kubectl_config["credentials"], file)
+    
+    def getKubeConfig(self):
+        kubectl_config = None
         try:
             kubectl_config = self.callNBI(self.nbi_client.k8scluster.list)[0]
         except Exception as e:
             print("ERROR: Could not get kube config: {}".format(e))
-            exit(1)
-        with open(self.kubectl_config_path, 'w') as file:
-            yaml.dump(kubectl_config["credentials"], file)
+            time.sleep(5)
+
+        return kubectl_config
     
     def getNodeSpecs(self):
         nodeSpecs = {}
@@ -38,12 +47,29 @@ class NBIConnector:
             # Handle any errors if the command fails
             print("Error executing kubectl command:", e)
             return None
-
+        
         for node in node_info["items"]:
             nodeSpecs[node["metadata"]["labels"]["kubernetes.io/hostname"]] = {
                 "num_cpu_cores": int(node["status"]["allocatable"]["cpu"]),
                 "memory_size": int(node["status"]["allocatable"]["memory"][:-2])/pow(1024,2),
             }
+
+        command = (
+            "{} --kubeconfig={} -n cadvisor get pods -o=json".format(
+                self.kubectl_command,
+                self.kubectl_config_path,
+            )
+        )
+        try:
+            # Execute the kubectl command and capture the output
+            cadvisor_pods = json.loads(subprocess.check_output(command.split()))
+        except subprocess.CalledProcessError as e:
+            # Handle any errors if the command fails
+            print("Error executing kubectl command:", e)
+            return None
+
+        for cadvisor_pod in cadvisor_pods["items"]:
+            nodeSpecs[cadvisor_pod["spec"]["nodeName"]]["cadvisor"] = cadvisor_pod["metadata"]["name"]
 
         return nodeSpecs
     
@@ -55,11 +81,20 @@ class NBIConnector:
                 "mobility-migration-factor": None,
             }
         
-        cpu_req = migration_policy["cpu-criteria"]["cpu-threshold"]
-        mem_req = migration_policy["mem-criteria"]["mem-threshold"]
-        mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
-        cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
-        mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
+        cpu_load_thresh = None
+        mem_load_thresh = None
+        mobility_migration_factor = None
+        if "cpu-criteria" in migration_policy:
+            cpu_req = migration_policy["cpu-criteria"]["cpu-threshold"]
+            cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
+        
+        if "mem-criteria" in migration_policy:
+            mem_req = migration_policy["mem-criteria"]["mem-threshold"]
+            mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
+
+        if "mobility-criteria" in migration_policy:
+            mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
+
         return {
             "cpu_load_thresh": cpu_load_thresh,
             "mem_load_thresh": mem_load_thresh,
@@ -72,7 +107,7 @@ class NBIConnector:
         ns_instances = self.callNBI(self.nbi_client.ns.list)
         mec_apps = self.callOSS("/mec-appis")
         
-        containerInfo = []
+        containerInfo = {}
 
         if len(ns_instances) < 1:
             print('INFO: No deployed ns instances')
@@ -95,7 +130,8 @@ class NBIConnector:
             vnf_instances = {}
             for vnf_id in vnf_ids:
                 vnfContent = self.callNBI(self.nbi_client.vnf.get, vnf_id)
-                vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
+                if vnfContent:
+                    vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
 
             kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
             for kdu in kdu_instances:
@@ -135,20 +171,19 @@ class NBIConnector:
                             for container in containers:
                                 if "containerID" in container:
                                     id = container["containerID"]
-                                    containerInfo.append({
-                                        "id": id.strip('"').split('/')[-1],
+                                    containerInfo[id.strip('"').split('/')[-1]] = {
                                         "ns_id": ns_id,
                                         "vnf_id": vnf_id,
                                         "kdu_id": kdu_instance,
                                         "node": nodeName,
                                         "migration_policy": migration_policy,
-                                    })
+                                    }
 
         return containerInfo
     
-    def migrate(self, container, node):
+    def migrate(self, cName, container, node):
         print("MIGRATING CONTAINER TO NODE {}".format(node))
-        print("CONTAINER ID: {}".format(container["id"]))
+        print("CONTAINER ID: {}".format(cName))
         print("NETWORK SERVICE ID: {}".format(container["ns_id"]))
         try:
             return self.callNBI(
