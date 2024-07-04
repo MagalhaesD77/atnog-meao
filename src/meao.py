@@ -46,6 +46,56 @@ class MEAO:
     def update_node_specs(self):
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
 
+    def min_usage_node(self):
+        min_usage_node = None
+        min_usage = 0
+        for node, nodeInfo in self.nodeSpecs.items():
+            if "cpuLoad" not in nodeInfo or "memLoad" not in nodeInfo:
+                continue
+            usage = nodeInfo["cpuLoad"] + nodeInfo["memLoad"]
+            if not min_usage_node or usage < min_usage:
+                min_usage_node = node
+                min_usage = usage
+        return min_usage_node, min_usage
+
+    def min_lat_MEH(self, ue_lats):
+        min_lat_meh = None
+        min_lat = 0
+        for meh, meh_lat in ue_lats.items():
+            if not min_lat_meh or meh_lat < min_lat:
+                min_lat_meh = meh
+                min_lat = meh_lat
+        return min_lat_meh, min_lat
+    
+    def resourceMigrationAlgorithm(self, container):
+        cpuLoad = container["cpuLoad"]
+        memLoad = container["memLoad"]
+        
+        # TEM DE SE MUDAR ESTA CONDIÇÃO
+        if (
+            (cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
+            or (memLoad > container["migration_policy"]["mem_load_thresh"])
+        ):
+            usage = self.nodeSpecs[container["node"]]["cpuLoad"] + self.nodeSpecs[container["node"]]["memLoad"]
+            min_usage_node, min_usage = self.min_usage_node()
+            if min_usage_node != container["node"] and min_usage < usage:
+                return min_usage_node
+        
+        return None
+        
+    def latencyMigrationAlgorithm(self, container):
+        ue_lats = container["ue-lats"]
+
+        current_meh = container["node"]
+        current_meh_lat = ue_lats[current_meh]
+
+        min_lat_meh, min_lat = self.min_lat_MEH(ue_lats)
+
+        if min_lat_meh != current_meh and min_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
+            return min_lat_meh
+        
+        return None
+
     def migrationAlgorithm(self, cName):
         container = self.containerInfo[cName]
         currentNode = container["node"]
@@ -84,56 +134,6 @@ class MEAO:
             op_id = self.nbi_k8s_connector.migrate(cName, container, finalTargetNode)
             self.migratingContainers[cName] = op_id
 
-    def min_usage_node(self):
-        min_usage_node = None
-        min_usage = 0
-        for node, nodeInfo in self.nodeSpecs.items():
-            if "cpuLoad" not in nodeInfo or "memLoad" not in nodeInfo:
-                continue
-            usage = nodeInfo["cpuLoad"] + nodeInfo["memLoad"]
-            if not min_usage_node or usage < min_usage:
-                min_usage_node = node
-                min_usage = usage
-        return min_usage_node, min_usage
-
-    def resourceMigrationAlgorithm(self, container):
-        cpuLoad = container["cpuLoad"]
-        memLoad = container["memLoad"]
-        
-        # TEM DE SE MUDAR ESTA CONDIÇÃO
-        if (
-            (cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
-            or (memLoad > container["migration_policy"]["mem_load_thresh"])
-        ):
-            usage = self.nodeSpecs[container["node"]]["cpuLoad"] + self.nodeSpecs[container["node"]]["memLoad"]
-            min_usage_node, min_usage = self.min_usage_node()
-            if min_usage_node != container["node"] and min_usage < usage:
-                return min_usage_node
-        
-        return None
-    
-    def min_lat_MEH(self, ue_lats):
-        min_lat_meh = None
-        min_lat = 0
-        for meh, meh_lat in ue_lats.items():
-            if not min_lat_meh or meh_lat < min_lat:
-                min_lat_meh = meh
-                min_lat = meh_lat
-        return min_lat_meh, min_lat
-        
-    def latencyMigrationAlgorithm(self, container):
-        ue_lats = container["ue-lats"]
-
-        current_meh = container["node"]
-        current_meh_lat = ue_lats[current_meh]
-
-        min_lat_meh, min_lat = self.min_lat_MEH(ue_lats)
-
-        if min_lat_meh != current_meh and min_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
-            return min_lat_meh
-        
-        return None
-    
     async def processContainerMetrics(self, cName, values, container=None):
         metrics = self.calcMetrics(cName, values, container)
 
@@ -143,6 +143,7 @@ class MEAO:
         else:        
             self.containerInfo[cName]["cpuLoad"] = metrics["cpuLoad"]
             self.containerInfo[cName]["memLoad"] = metrics["memLoad"]
+            print(metrics)
             self.migrationAlgorithm(cName)
     
     async def processContainerLatencies(self, cName, values):
