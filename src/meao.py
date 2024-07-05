@@ -306,18 +306,10 @@ class MEAO:
             time.sleep(self.update_container_ids_freq)
 
             # Update node specs
-            updatedNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
-            if not updatedNodeSpecs:
-                self.nodeSpecs = None
-            else:
-                self.nodeSpecs = self.updateDict(self.nodeSpecs, updatedNodeSpecs)
+            self.nodeSpecs = self.updateDict(self.nodeSpecs, self.nbi_k8s_connector.getNodeSpecs())
 
             # Update container info
-            updatedContainerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
-            if not updatedContainerInfo:
-                self.containerInfo = None
-            else:
-                self.containerInfo = self.updateDict(self.containerInfo, updatedContainerInfo)
+            self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs))
             
             # Clean up migrating containers
             idsToDelete = [

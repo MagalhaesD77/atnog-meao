@@ -46,7 +46,7 @@ class NBIConnector:
         except subprocess.CalledProcessError as e:
             # Handle any errors if the command fails
             print("Error executing kubectl command:", e)
-            return None
+            return nodeSpecs
         
         for node in node_info["items"]:
             nodeSpecs[node["metadata"]["labels"]["kubernetes.io/hostname"]] = {
@@ -66,7 +66,7 @@ class NBIConnector:
         except subprocess.CalledProcessError as e:
             # Handle any errors if the command fails
             print("Error executing kubectl command:", e)
-            return None
+            return nodeSpecs
 
         for cadvisor_pod in cadvisor_pods["items"]:
             nodeSpecs[cadvisor_pod["spec"]["nodeName"]]["cadvisor"] = cadvisor_pod["metadata"]["name"]
@@ -109,11 +109,14 @@ class NBIConnector:
         
         containerInfo = {}
 
-        if len(ns_instances) < 1:
-            print('INFO: No deployed ns instances')
+        if not ns_instances:
+            print('ERROR: Error calling OSM ns_instances endpoint')
             return containerInfo
         elif 'code' in ns_instances[0].keys():
             print('ERROR: Error calling OSM ns_instances endpoint')
+            return containerInfo
+        elif len(ns_instances) < 1:
+            print('INFO: No deployed ns instances')
             return containerInfo
         
         if "error" in mec_apps:
@@ -154,7 +157,7 @@ class NBIConnector:
                 except subprocess.CalledProcessError as e:
                     # Handle any errors if the command fails
                     print("Error executing kubectl command:", e)
-                    return None
+                    return containerInfo
                 
                 for pod in k8s_info["items"]:
                     if "deletionGracePeriodSeconds" in pod["metadata"] and "deletionTimestamp" in pod["metadata"]:
