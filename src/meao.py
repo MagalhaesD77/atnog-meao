@@ -68,19 +68,32 @@ class MEAO:
         return min_lat_meh, min_lat
     
     def resourceMigrationAlgorithm(self, container):
-        return None
         cpuLoad = container["cpuLoad"]
         memLoad = container["memLoad"]
-        
-        # TEM DE SE MUDAR ESTA CONDIÇÃO
+        node_cpuLoad = self.nodeSpecs[container["node"]]["cpuLoad"]
+        node_memLoad = self.nodeSpecs[container["node"]]["memLoad"]
+        node_usage = node_cpuLoad + node_memLoad
+
+        min_cpu_resources = container["migration_policy"]["cpu_load_thresh"]
+        extra_cpu_resources = container["migration_policy"]["cpu_surge_capacity"]
+        max_cpu_resources = min_cpu_resources + extra_cpu_resources
+
+        min_mem_resources = container["migration_policy"]["mem_load_thresh"]
+        extra_mem_resources = container["migration_policy"]["mem_surge_capacity"]
+        max_mem_resources = min_mem_resources + extra_mem_resources
+
         if (
-            (cpuLoad > container["migration_policy"]["cpu_load_thresh"]) 
-            or (memLoad > container["migration_policy"]["mem_load_thresh"])
+            (cpuLoad > max_cpu_resources) 
+            or (memLoad > max_mem_resources)
+            or (100-node_cpuLoad) < min(extra_cpu_resources, max_cpu_resources-cpuLoad)
+            or (100-node_memLoad) < min(extra_mem_resources, max_mem_resources-memLoad)
         ):
-            usage = self.nodeSpecs[container["node"]]["cpuLoad"] + self.nodeSpecs[container["node"]]["memLoad"]
             min_usage_node, min_usage = self.min_usage_node()
-            if min_usage_node != container["node"] and min_usage < usage:
-                return min_usage_node
+            print(container["node"])
+            print(min_usage_node)
+            if min_usage_node != container["node"] and min_usage < node_usage:
+                print("target:", min_usage_node)
+                return None
         
         return None
         

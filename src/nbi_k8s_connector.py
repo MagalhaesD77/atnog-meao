@@ -85,15 +85,12 @@ class NBIConnector:
         mem_load_thresh = None
         mobility_migration_factor = None
         if "cpu-criteria" in migration_policy:
-            cpu_req = migration_policy["cpu-criteria"]["allocated-cpu"]
-            cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
-            cpu_surge_capacity = migration_policy["cpu-criteria"]["cpu-surge-capacity"]
-
+            cpu_load_thresh = (migration_policy["cpu-criteria"]["allocated-cpu"]/nodeSpecs[nodeName]["num_cpu_cores"])*100
+            cpu_surge_capacity = (migration_policy["cpu-criteria"]["cpu-surge-capacity"]/nodeSpecs[nodeName]["num_cpu_cores"])*100
         
         if "mem-criteria" in migration_policy:
-            mem_req = migration_policy["mem-criteria"]["allocated-memory"]
-            mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
-            memory_surge_capacity = migration_policy["mem-criteria"]["memory-surge-capacity"]
+            mem_load_thresh = (migration_policy["mem-criteria"]["allocated-mem"]/nodeSpecs[nodeName]["memory_size"])*100
+            mem_surge_capacity = (migration_policy["mem-criteria"]["mem-surge-capacity"]/nodeSpecs[nodeName]["memory_size"])*100
 
         if "mobility-criteria" in migration_policy:
             mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
@@ -102,7 +99,7 @@ class NBIConnector:
             "cpu_load_thresh": cpu_load_thresh,
             "cpu_surge_capacity": cpu_surge_capacity,
             "mem_load_thresh": mem_load_thresh,
-            "memory_surge_capacity": memory_surge_capacity,
+            "mem_surge_capacity": mem_surge_capacity,
             "mobility-migration-factor": mobility_migration_factor,
         }
 
