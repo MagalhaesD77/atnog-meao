@@ -25,12 +25,12 @@ class ContainerInfoThread(plugins.SimplePlugin):
 def get_containers_info():
     while True:
         try:
-            response = requests.get("http://meao-migration:8000/containerInfo")
+            response = requests.get("http://meao-monitoring:8000/containerInfo")
             idsMonitored = []
             for containerName, container in (response.json()["ContainerInfo"]).items():
                 idsMonitored.append(containerName)
                 node_specs = requests.get(
-                    "http://meao-migration:8000/nodeSpecs/" + container["node"]
+                    "http://meao-monitoring:8000/nodeSpecs/" + container["node"]
                 ).json()
                 if containerName not in containers:
                     containers[containerName] = {

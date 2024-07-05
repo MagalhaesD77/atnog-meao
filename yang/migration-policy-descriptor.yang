@@ -62,12 +62,17 @@ module migration-policy-descriptor {
     container cpu-criteria {
       description "Criteria that defines when an application migration is executed due to unmet CPU requirements.";
 
-      leaf cpu-threshold {
-        description "Value above which application migration is executed ().";
+      leaf allocated-cpu {
+        description "The amount of CPU resources (in vCPUs) allocated for the application.";
+        type uint32;
+      }
+
+      leaf cpu-surge-capacity {
+        description "The additional CPU resources (in vCPUs) that the host must be able to provide when the application experiences a surge in demand.";
         type uint32;
       }
       
-      leaf threshold-time {
+      leaf cpu-threshold-time {
         description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }
@@ -76,12 +81,17 @@ module migration-policy-descriptor {
     container mem-criteria {
       description "Criteria that defines when an application migration is executed due to unmet memory requirements.";
 
-      leaf mem-threshold {
-        description "Value above which application migration is executed (Mb).";
+      leaf allocated-memory {
+        description "The amount of memory resources (in MB) allocated for the application.";
+        type uint32;
+      }
+
+      leaf memory-surge-capacity {
+        description "The additional memory resources (in MB) that the host must be able to provide when the application experiences a surge in demand.";
         type uint32;
       }
       
-      leaf threshold-time {
+      leaf memory-threshold-time {
         description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }
@@ -98,7 +108,7 @@ module migration-policy-descriptor {
         }
       }
       
-      leaf threshold-time {
+      leaf mobility-threshold-time {
         description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }
