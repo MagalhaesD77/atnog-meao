@@ -81,17 +81,17 @@ module migration-policy-descriptor {
     container mem-criteria {
       description "Criteria that defines when an application migration is executed due to unmet memory requirements.";
 
-      leaf allocated-memory {
+      leaf allocated-mem {
         description "The amount of memory resources (in MB) allocated for the application.";
         type uint32;
       }
 
-      leaf memory-surge-capacity {
+      leaf mem-surge-capacity {
         description "The additional memory resources (in MB) that the host must be able to provide when the application experiences a surge in demand.";
         type uint32;
       }
       
-      leaf memory-threshold-time {
+      leaf mem-threshold-time {
         description "The duration (in seconds) for which the condition can be unmet before application migration is executed.";
         type uint32;
       }

@@ -13606,7 +13606,7 @@ class yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria
 
   YANG Description: Criteria that defines when an application migration is executed due to unmet memory requirements.
   """
-  __slots__ = ('_path_helper', '_extmethods', '__allocated_memory','__memory_surge_capacity','__memory_threshold_time',)
+  __slots__ = ('_path_helper', '_extmethods', '__allocated_mem','__mem_surge_capacity','__mem_threshold_time',)
 
   _yang_name = 'mem-criteria'
   _yang_namespace = 'http://example.com/ns/mec-app-descriptor'
@@ -13618,9 +13618,9 @@ class yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria
     self._path_helper = False
 
     self._extmethods = False
-    self.__allocated_memory = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-memory", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    self.__memory_surge_capacity = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
-    self.__memory_threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+    self.__allocated_mem = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-mem", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+    self.__mem_surge_capacity = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+    self.__mem_threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
     load = kwargs.pop("load", None)
     if args:
@@ -13649,122 +13649,122 @@ class yc_mem_criteria_mec_app_descriptor__mec_appd_migration_policy_mem_criteria
     else:
       return ['mec-appd', 'migration-policy', 'mem-criteria']
 
-  def _get_allocated_memory(self):
+  def _get_allocated_mem(self):
     """
-    Getter method for allocated_memory, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/allocated_memory (uint32)
+    Getter method for allocated_mem, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/allocated_mem (uint32)
 
     YANG Description: The amount of memory resources (in MB) allocated for the application.
     """
-    return self.__allocated_memory
+    return self.__allocated_mem
       
-  def _set_allocated_memory(self, v, load=False):
+  def _set_allocated_mem(self, v, load=False):
     """
-    Setter method for allocated_memory, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/allocated_memory (uint32)
+    Setter method for allocated_mem, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/allocated_mem (uint32)
     If this variable is read-only (config: false) in the
-    source YANG file, then _set_allocated_memory is considered as a private
+    source YANG file, then _set_allocated_mem is considered as a private
     method. Backends looking to populate this variable should
-    do so via calling thisObj._set_allocated_memory() directly.
+    do so via calling thisObj._set_allocated_mem() directly.
 
     YANG Description: The amount of memory resources (in MB) allocated for the application.
     """
     if hasattr(v, "_utype"):
       v = v._utype(v)
     try:
-      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-memory", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-mem", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
     except (TypeError, ValueError):
       raise ValueError({
-          'error-string': """allocated_memory must be of a type compatible with uint32""",
+          'error-string': """allocated_mem must be of a type compatible with uint32""",
           'defined-type': "uint32",
-          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-memory", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
+          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-mem", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
         })
 
-    self.__allocated_memory = t
+    self.__allocated_mem = t
     if hasattr(self, '_set'):
       self._set()
 
-  def _unset_allocated_memory(self):
-    self.__allocated_memory = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-memory", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+  def _unset_allocated_mem(self):
+    self.__allocated_mem = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="allocated-mem", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
 
-  def _get_memory_surge_capacity(self):
+  def _get_mem_surge_capacity(self):
     """
-    Getter method for memory_surge_capacity, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/memory_surge_capacity (uint32)
+    Getter method for mem_surge_capacity, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/mem_surge_capacity (uint32)
 
     YANG Description: The additional memory resources (in MB) that the host must be able to provide when the application experiences a surge in demand.
     """
-    return self.__memory_surge_capacity
+    return self.__mem_surge_capacity
       
-  def _set_memory_surge_capacity(self, v, load=False):
+  def _set_mem_surge_capacity(self, v, load=False):
     """
-    Setter method for memory_surge_capacity, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/memory_surge_capacity (uint32)
+    Setter method for mem_surge_capacity, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/mem_surge_capacity (uint32)
     If this variable is read-only (config: false) in the
-    source YANG file, then _set_memory_surge_capacity is considered as a private
+    source YANG file, then _set_mem_surge_capacity is considered as a private
     method. Backends looking to populate this variable should
-    do so via calling thisObj._set_memory_surge_capacity() directly.
+    do so via calling thisObj._set_mem_surge_capacity() directly.
 
     YANG Description: The additional memory resources (in MB) that the host must be able to provide when the application experiences a surge in demand.
     """
     if hasattr(v, "_utype"):
       v = v._utype(v)
     try:
-      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
     except (TypeError, ValueError):
       raise ValueError({
-          'error-string': """memory_surge_capacity must be of a type compatible with uint32""",
+          'error-string': """mem_surge_capacity must be of a type compatible with uint32""",
           'defined-type': "uint32",
-          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
+          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
         })
 
-    self.__memory_surge_capacity = t
+    self.__mem_surge_capacity = t
     if hasattr(self, '_set'):
       self._set()
 
-  def _unset_memory_surge_capacity(self):
-    self.__memory_surge_capacity = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+  def _unset_mem_surge_capacity(self):
+    self.__mem_surge_capacity = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-surge-capacity", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
 
-  def _get_memory_threshold_time(self):
+  def _get_mem_threshold_time(self):
     """
-    Getter method for memory_threshold_time, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/memory_threshold_time (uint32)
+    Getter method for mem_threshold_time, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/mem_threshold_time (uint32)
 
     YANG Description: The duration (in seconds) for which the condition can be unmet before application migration is executed.
     """
-    return self.__memory_threshold_time
+    return self.__mem_threshold_time
       
-  def _set_memory_threshold_time(self, v, load=False):
+  def _set_mem_threshold_time(self, v, load=False):
     """
-    Setter method for memory_threshold_time, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/memory_threshold_time (uint32)
+    Setter method for mem_threshold_time, mapped from YANG variable /mec_appd/migration_policy/mem_criteria/mem_threshold_time (uint32)
     If this variable is read-only (config: false) in the
-    source YANG file, then _set_memory_threshold_time is considered as a private
+    source YANG file, then _set_mem_threshold_time is considered as a private
     method. Backends looking to populate this variable should
-    do so via calling thisObj._set_memory_threshold_time() directly.
+    do so via calling thisObj._set_mem_threshold_time() directly.
 
     YANG Description: The duration (in seconds) for which the condition can be unmet before application migration is executed.
     """
     if hasattr(v, "_utype"):
       v = v._utype(v)
     try:
-      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+      t = YANGDynClass(v,base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
     except (TypeError, ValueError):
       raise ValueError({
-          'error-string': """memory_threshold_time must be of a type compatible with uint32""",
+          'error-string': """mem_threshold_time must be of a type compatible with uint32""",
           'defined-type': "uint32",
-          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
+          'generated-type': """YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)""",
         })
 
-    self.__memory_threshold_time = t
+    self.__mem_threshold_time = t
     if hasattr(self, '_set'):
       self._set()
 
-  def _unset_memory_threshold_time(self):
-    self.__memory_threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="memory-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
+  def _unset_mem_threshold_time(self):
+    self.__mem_threshold_time = YANGDynClass(base=RestrictedClassType(base_type=long, restriction_dict={'range': ['0..4294967295']}, int_size=32), is_leaf=True, yang_name="mem-threshold-time", parent=self, path_helper=self._path_helper, extmethods=self._extmethods, register_paths=True, namespace='http://example.com/ns/mec-app-descriptor', defining_module='mec-app-descriptor', yang_type='uint32', is_config=True)
 
-  allocated_memory = __builtin__.property(_get_allocated_memory, _set_allocated_memory)
-  memory_surge_capacity = __builtin__.property(_get_memory_surge_capacity, _set_memory_surge_capacity)
-  memory_threshold_time = __builtin__.property(_get_memory_threshold_time, _set_memory_threshold_time)
+  allocated_mem = __builtin__.property(_get_allocated_mem, _set_allocated_mem)
+  mem_surge_capacity = __builtin__.property(_get_mem_surge_capacity, _set_mem_surge_capacity)
+  mem_threshold_time = __builtin__.property(_get_mem_threshold_time, _set_mem_threshold_time)
 
 
-  _pyangbind_elements = OrderedDict([('allocated_memory', allocated_memory), ('memory_surge_capacity', memory_surge_capacity), ('memory_threshold_time', memory_threshold_time), ])
+  _pyangbind_elements = OrderedDict([('allocated_mem', allocated_mem), ('mem_surge_capacity', mem_surge_capacity), ('mem_threshold_time', mem_threshold_time), ])
 
 
 class yc_mobility_criteria_mec_app_descriptor__mec_appd_migration_policy_mobility_criteria(PybindBase):
