@@ -85,19 +85,24 @@ class NBIConnector:
         mem_load_thresh = None
         mobility_migration_factor = None
         if "cpu-criteria" in migration_policy:
-            cpu_req = migration_policy["cpu-criteria"]["cpu-threshold"]
+            cpu_req = migration_policy["cpu-criteria"]["allocated-cpu"]
             cpu_load_thresh = (cpu_req/nodeSpecs[nodeName]["num_cpu_cores"])*100
+            cpu_surge_capacity = migration_policy["cpu-criteria"]["cpu-surge-capacity"]
+
         
         if "mem-criteria" in migration_policy:
-            mem_req = migration_policy["mem-criteria"]["mem-threshold"]
+            mem_req = migration_policy["mem-criteria"]["allocated-memory"]
             mem_load_thresh = (mem_req/nodeSpecs[nodeName]["memory_size"])*100
+            memory_surge_capacity = migration_policy["mem-criteria"]["memory-surge-capacity"]
 
         if "mobility-criteria" in migration_policy:
             mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
 
         return {
             "cpu_load_thresh": cpu_load_thresh,
+            "cpu_surge_capacity": cpu_surge_capacity,
             "mem_load_thresh": mem_load_thresh,
+            "memory_surge_capacity": memory_surge_capacity,
             "mobility-migration-factor": mobility_migration_factor,
         }
 
@@ -109,14 +114,14 @@ class NBIConnector:
         
         containerInfo = {}
 
-        if not ns_instances:
-            print('ERROR: Error calling OSM ns_instances endpoint')
-            return containerInfo
-        elif 'code' in ns_instances[0].keys():
+        if ns_instances == None:
             print('ERROR: Error calling OSM ns_instances endpoint')
             return containerInfo
         elif len(ns_instances) < 1:
             print('INFO: No deployed ns instances')
+            return containerInfo
+        elif 'code' in ns_instances[0].keys():
+            print('ERROR: Error calling OSM ns_instances endpoint')
             return containerInfo
         
         if "error" in mec_apps:

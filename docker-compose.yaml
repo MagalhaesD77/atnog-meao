@@ -1,5 +1,5 @@
 services:
-  meao-migration:
+  meao-monitoring:
     build: .
     environment:
       - PYTHONUNBUFFERED=1

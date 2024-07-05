@@ -68,6 +68,7 @@ class MEAO:
         return min_lat_meh, min_lat
     
     def resourceMigrationAlgorithm(self, container):
+        return None
         cpuLoad = container["cpuLoad"]
         memLoad = container["memLoad"]
         
