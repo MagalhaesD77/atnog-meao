@@ -89,11 +89,8 @@ class MEAO:
             or (100-node_memLoad) < min(extra_mem_resources, max_mem_resources-memLoad)
         ):
             min_usage_node, min_usage = self.min_usage_node()
-            print(container["node"])
-            print(min_usage_node)
             if min_usage_node != container["node"] and min_usage < node_usage:
-                print("target:", min_usage_node)
-                return None
+                return min_usage_node
         
         return None
         
@@ -137,8 +134,15 @@ class MEAO:
             (resourceTargetNode and resourceTargetNode in self.nodeSpecs.keys())
             and (latencyTargetNode and latencyTargetNode in self.nodeSpecs.keys())
         ):
-            if resourceTargetNode == latencyTargetNode:
+            if resourceTargetNode == latencyTargetNode or container["migration_policy"]["mobility-migration-factor"] == 0:
                 finalTargetNode = resourceTargetNode
+            else:
+                latency_meh_lat = container["ue-lats"][latencyTargetNode]
+                resource_meh_lat = container["ue-lats"][resourceTargetNode]
+                if resource_meh_lat < latency_meh_lat/container["migration_policy"]["mobility-migration-factor"]:
+                    finalTargetNode = resourceTargetNode
+                else:
+                    finalTargetNode = latencyTargetNode
         elif resourceTargetNode and resourceTargetNode in self.nodeSpecs.keys():
             finalTargetNode = resourceTargetNode
         elif latencyTargetNode and latencyTargetNode in self.nodeSpecs.keys():
@@ -157,7 +161,6 @@ class MEAO:
         else:        
             self.containerInfo[cName]["cpuLoad"] = metrics["cpuLoad"]
             self.containerInfo[cName]["memLoad"] = metrics["memLoad"]
-            print(metrics)
             self.migrationAlgorithm(cName)
     
     async def processContainerLatencies(self, cName, values):
