@@ -1,4 +1,4 @@
-Metrics collected, Metrics received, Migration Decision, New Pod Started, New Pod Running, Old Pod Terminated, Migration Done (OSM)
+Metrics Collection, Metrics Reception, Migration Decision, Target Node Pod Initialization, Target Node Pod Ready, Original Node Pod Termination, Migration Completion in OSM
 0.000000,9.389162,0.742674,2762.250423,2733.587742,827.850819,7615.454674
 0.000000,4.843473,0.427961,2645.883799,2573.986769,1410.318375,7242.022038
 0.000000,3.463268,0.632763,3080.810308,2207.558393,614.231110,7986.340523
