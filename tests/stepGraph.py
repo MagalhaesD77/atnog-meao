@@ -13,20 +13,20 @@ df = df.drop(columns=["Metrics Collection"]) / 1000
 
 # Calculate additional metrics
 df["Total Time until Target Node Pod Ready"] = (
-    df[" Metrics Reception"]
-    + df[" Migration Decision"]
-    + df[" Target Node Pod Initialization"]
-    + df[" Target Node Pod Ready"]
+    df["Metrics Reception"]
+    + df["Migration Decision"]
+    + df["Target Node Pod Initialization"]
+    + df["Target Node Pod Ready"]
 )
 
 df["Total Time until Original Node Pod Termination"] = (
     df["Total Time until Target Node Pod Ready"]
-    + df[" Original Node Pod Termination"]
+    + df["Original Node Pod Termination"]
 )
 
 df["Total Time until Migration Completion in OSM"] = (
     df["Total Time until Original Node Pod Termination"]
-    + df[" Migration Completion in OSM"]
+    + df["Migration Completion in OSM"]
 )
 
 # Melt the DataFrame to format it for Seaborn
