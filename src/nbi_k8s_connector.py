@@ -31,6 +31,23 @@ class NBIConnector:
 
         return kubectl_config
     
+    def get_pod_status(self, namespace):
+        command = (
+            "{} --kubeconfig={} get pods -n {} -o=json".format(
+                self.kubectl_command,
+                self.kubectl_config_path,
+                namespace,
+            )
+        )
+        try:
+            # Execute the kubectl command and capture the output
+            pods = json.loads(subprocess.check_output(command.split()))['items']
+        except subprocess.CalledProcessError as e:
+            # Handle any errors if the command fails
+            print("Error executing kubectl command:", e)
+        pod_status = {pod['metadata']['name']: pod['status']['phase'] for pod in pods}
+        return pod_status
+    
     def getNodeSpecs(self):
         nodeSpecs = {}
 
@@ -69,7 +86,8 @@ class NBIConnector:
             return nodeSpecs
 
         for cadvisor_pod in cadvisor_pods["items"]:
-            nodeSpecs[cadvisor_pod["spec"]["nodeName"]]["cadvisor"] = cadvisor_pod["metadata"]["name"]
+            if "nodeName" in cadvisor_pod["spec"]:
+                nodeSpecs[cadvisor_pod["spec"]["nodeName"]]["cadvisor"] = cadvisor_pod["metadata"]["name"]
 
         return nodeSpecs
     

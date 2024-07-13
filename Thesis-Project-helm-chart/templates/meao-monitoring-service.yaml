@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: meao-monitoring
+  name: meao-monitoring
+spec:
+  type: NodePort
+  ports:
+    - name: "8000"
+      port: 8000
+      targetPort: 8000
+      nodePort: 8000
+  selector:
+    app: meao-monitoring

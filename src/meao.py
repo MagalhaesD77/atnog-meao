@@ -2,8 +2,11 @@ import json
 import asyncio
 import time
 import threading
+import time
+import subprocess
+import datetime
+import dateutil.parser as dp
 from confluent_kafka import Consumer, KafkaError
-import random
 
 class MEAO:
     def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_latency_kafka_topic, kafka_consumer_conf) -> None:
@@ -18,6 +21,9 @@ class MEAO:
         self.containerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
         print("Container Info: " + str(self.containerInfo))
         self.cpu_history = {}
+        self.log = {}
+        with open("results.csv", "w") as log_file:
+            log_file.write("Metrics collected, Metrics received, Migration Decision, New Pod Started, New Pod Running, Old Pod Terminated, Migration Done (OSM)\n")
 
 
     def start(self):
@@ -25,11 +31,13 @@ class MEAO:
         read_metrics_collector = threading.Thread(target=self.read_metrics_collector)
         read_ue_latency = threading.Thread(target=self.read_ue_latency)
         update_thread = threading.Thread(target=self.update_container_ids)
+        watch_kubectl_thread = threading.Thread(target=self.watch_kubectl)
 
         # Start threads
         read_metrics_collector.start()
         read_ue_latency.start()
         update_thread.start()
+        watch_kubectl_thread.start()
 
     def get_node_specs(self, hostname=None):
         if hostname:
@@ -67,7 +75,7 @@ class MEAO:
                 min_lat = meh_lat
         return min_lat_meh, min_lat
     
-    def resourceMigrationAlgorithm(self, container):
+    def resourceMigrationAlgorithm(self, container, cName):
         cpuLoad = container["cpuLoad"]
         memLoad = container["memLoad"]
         node_cpuLoad = self.nodeSpecs[container["node"]]["cpuLoad"]
@@ -89,9 +97,12 @@ class MEAO:
             or (100-node_memLoad) < min(extra_mem_resources, max_mem_resources-memLoad)
         ):
             min_usage_node, min_usage = self.min_usage_node()
-            if min_usage_node != container["node"] and min_usage < node_usage:
+            if min_usage_node != container["node"] and min_usage < node_usage and cName not in self.migratingContainers:
+                self.log[cName] += str(time.time()) + ","
                 return min_usage_node
         
+        if cName in self.log:
+            self.log.pop(cName)
         return None
         
     def latencyMigrationAlgorithm(self, container):
@@ -125,7 +136,7 @@ class MEAO:
             (container["migration_policy"]["cpu_load_thresh"] and "cpuLoad" in container)
             or (container["migration_policy"]["mem_load_thresh"] and "memLoad" in container)
         ):
-            resourceTargetNode = self.resourceMigrationAlgorithm(container)
+            resourceTargetNode = self.resourceMigrationAlgorithm(container, cName)
         if container["migration_policy"]["mobility-migration-factor"] and "ue-lats" in container:
             latencyTargetNode = self.latencyMigrationAlgorithm(container)
 
@@ -148,7 +159,8 @@ class MEAO:
         elif latencyTargetNode and latencyTargetNode in self.nodeSpecs.keys():
             finalTargetNode = latencyTargetNode
 
-        if finalTargetNode:
+        if finalTargetNode and cName not in self.migratingContainers:
+            self.migratingContainers[cName] = "MIGRATING"
             op_id = self.nbi_k8s_connector.migrate(cName, container, finalTargetNode)
             self.migratingContainers[cName] = op_id
 
@@ -276,9 +288,16 @@ class MEAO:
                         if nodeInfo["cadvisor"] == machine_name:
                             asyncio.run(self.processContainerMetrics(node, values))
                             break
-                for containerName, container in self.containerInfo.items():
-                    if containerName in cName:
-                        asyncio.run(self.processContainerMetrics(containerName, values, container))
+                try:
+                    for containerName, container in self.containerInfo.items():
+                        if containerName in cName:
+                            if containerName not in self.migratingContainers:
+                                dataCollectionTime = dp.parse(values["timestamp"]).timestamp()
+                                self.log[containerName] = str(dataCollectionTime) + ","
+                                self.log[containerName] += str(time.time()) + ","
+                            asyncio.run(self.processContainerMetrics(containerName, values, container))
+                except RuntimeError as e:
+                    print("INFO: Array changed size during latency reading operation")
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -311,8 +330,11 @@ class MEAO:
 
                 # Process the message
                 values = json.loads(message.value().decode('utf-8'))
-                for containerName in self.containerInfo.keys():
-                    asyncio.run(self.processContainerLatencies(containerName, values))
+                try:
+                    for containerName in self.containerInfo.keys():
+                        asyncio.run(self.processContainerLatencies(containerName, values))
+                except RuntimeError as e:
+                    print("INFO: Array changed size during latency reading operation")
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -332,10 +354,60 @@ class MEAO:
             idsToDelete = [
                 container_id 
                 for container_id, op_id in self.migratingContainers.items() 
-                if self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
+                if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
             ]
             
             for container_id in idsToDelete:
                 self.migratingContainers.pop(container_id)
             print("Container Info: " + json.dumps(self.containerInfo, indent=2))
             print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
+
+    def watch_kubectl(self):
+        namespace = "17d7aed1-869a-4ced-b492-c3a8b0a433c2"
+        old_pod_status = self.nbi_k8s_connector.get_pod_status(namespace)
+        
+        while True:
+            new_pod_status = self.nbi_k8s_connector.get_pod_status(namespace)
+
+            # Check for new pods
+            for pod_name, status in new_pod_status.items():
+                if pod_name not in old_pod_status and len(list(self.migratingContainers.keys())) == 1:
+                    # new pod
+
+                    # wait for it to get to "running" state
+                    cName = list(self.migratingContainers.keys())[0]
+                    self.log[cName] += str(time.time()) + ","
+                    while True:
+                        new_pod_status = self.nbi_k8s_connector.get_pod_status(namespace)
+                        if new_pod_status[pod_name] == "Running":
+                            self.log[cName] += str(time.time()) + ","
+                            break
+                    
+                    for pod, status in new_pod_status.items():
+                        if pod in old_pod_status:
+                            pod_name = pod
+                            break
+
+                    # wait for old one to be deleted
+                    while True:
+                        new_pod_status = self.nbi_k8s_connector.get_pod_status(namespace)
+                        if pod_name not in new_pod_status.keys():
+                            self.log[cName] += str(time.time()) + ","
+                            break
+                    
+                    op_id = self.migratingContainers[cName]
+                    while True:
+                        if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING":
+                            self.log[cName] += str(time.time()) + ","
+                            timestamps = [float(ts) for ts in self.log[cName].split(',') if ts]
+                            differences = [0]
+                            for i in range(1, len(timestamps)):
+                                differences.append((timestamps[i] - timestamps[i - 1])* 1000)
+                            differences_str = ','.join(f"{diff:.6f}" for diff in differences)
+                            print(differences_str)
+                            with open("results.csv", "a") as log_file:
+                                log_file.write(differences_str + "\n")
+                            self.log.pop(cName)
+                            break
+
+                    old_pod_status = new_pod_status

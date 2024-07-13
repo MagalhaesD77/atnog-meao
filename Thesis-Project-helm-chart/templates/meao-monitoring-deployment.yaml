@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: meao-monitoring
+  name: meao-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meao-monitoring
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: meao-monitoring
+    spec:
+      containers:
+        - env:
+            - name: KAFKA_SERVER
+              value: 10.255.32.88:14000
+            - name: KUBECTL_COMMAND
+              value: /usr/local/bin/kubectl
+            - name: KUBECTL_CONFIG_PATH
+              value: kube_config
+            - name: METRICS_COLLECTOR_KAFKA_TOPIC
+              value: k8s-cluster
+            - name: OSM_HOSTNAME
+              value: 10.255.32.88:9999
+            - name: OSS_HOSTNAME
+              value: http://10.255.32.88:8080/oss/v1
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: UE_LATENCY_KAFKA_TOPIC
+              value: ue-lat
+            - name: UPDATE_CONTAINER_IDS_FREQ
+              value: "5"
+          image: localhost:5000/meao-monitoring
+          imagePullPolicy: Always
+          name: meao-monitoring
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+      restartPolicy: Always

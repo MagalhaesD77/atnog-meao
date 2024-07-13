@@ -1,0 +1,8 @@
+name: thesis-project
+description: A generated Helm Chart for Thesis-Project
+version: 0.0.1
+apiVersion: v1
+keywords:
+  - thesis-project
+sources:
+home:
