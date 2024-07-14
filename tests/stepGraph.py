@@ -81,4 +81,7 @@ plt.xlabel('Migration Phase', fontsize=14)
 plt.ylabel('Time (s)', fontsize=14)
 
 plt.tight_layout()
+
+plt.savefig('migration_phases_boxplot.png', format='png', dpi=300)
+
 plt.show()
