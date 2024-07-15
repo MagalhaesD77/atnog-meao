@@ -23,7 +23,7 @@ class MEAO:
         self.cpu_history = {}
         self.log = {}
         with open("results.csv", "w") as log_file:
-            log_file.write("Metrics Collection,Metrics Reception,Migration Decision,Target Node Pod Initialization,Target Node Pod Ready,Original Node Pod Termination,Migration Completion in OSM\n")
+            log_file.write("Metrics Collection,Metrics Reception,Migration Decision,Target Node Pod Initialization,Target Node Pod Ready,Source Node Pod Termination,Migration Completion in OSM\n")
 
 
     def start(self):
