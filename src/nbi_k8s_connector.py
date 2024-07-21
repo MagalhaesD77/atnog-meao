@@ -107,8 +107,8 @@ class NBIConnector:
             cpu_surge_capacity = (migration_policy["cpu-criteria"]["cpu-surge-capacity"]/nodeSpecs[nodeName]["num_cpu_cores"])*100
         
         if "mem-criteria" in migration_policy and nodeName in nodeSpecs:
-            mem_load_thresh = (migration_policy["mem-criteria"]["allocated-mem"]/nodeSpecs[nodeName]["memory_size"])*100
-            mem_surge_capacity = (migration_policy["mem-criteria"]["mem-surge-capacity"]/nodeSpecs[nodeName]["memory_size"])*100
+            mem_load_thresh = ((migration_policy["mem-criteria"]["allocated-mem"]/1024)/nodeSpecs[nodeName]["memory_size"])*100
+            mem_surge_capacity = ((migration_policy["mem-criteria"]["mem-surge-capacity"]/1024)/nodeSpecs[nodeName]["memory_size"])*100
 
         if "mobility-criteria" in migration_policy:
             mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]

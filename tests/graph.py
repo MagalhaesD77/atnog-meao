@@ -3,7 +3,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import textwrap
-from matplotlib import gridspec
 import numpy as np
 import scipy.stats as st 
 
@@ -16,93 +15,104 @@ df2 = pd.read_csv(file_path2)
 
 # Drop columns and convert to seconds
 df1 = df1.drop(columns=["Metrics Collection"]) / 1000
-
-df2 = df2.drop(columns=["Target Node Pod Initialization"]) / 1000
+df2 = df2.drop(columns=["Target Pod Initialization"]) / 1000
 
 # Calculate additional metrics
-df1["Total Time until Target Node Pod Ready"] = (
+df1["PoC Scenario - Time until Target Pod Ready"] = (
     df1["Metrics Reception"]
     + df1["Migration Decision"]
-    + df1["Target Node Pod Initialization"]
-    + df1["Target Node Pod Ready"]
+    + df1["Target Pod Initialization"]
+    + df1["Target Pod Ready"]
 )
 
-df1["Total Time until Source Node Pod Termination"] = (
-    df1["Total Time until Target Node Pod Ready"]
-    + df1["Source Node Pod Termination"]
+df1["PoC Scenario - Time until Source Pod Termination"] = (
+    df1["PoC Scenario - Time until Target Pod Ready"]
+    + df1["Source Pod Termination"]
 )
 
-df1["Total Time until Migration Completion in OSM"] = (
-    df1["Total Time until Source Node Pod Termination"]
+df1["PoC Scenario - Time until Migration Completion in OSM"] = (
+    df1["PoC Scenario - Time until Source Pod Termination"]
     + df1["Migration Completion in OSM"]
 )
 
 # Create 99% confidence interval and replace values within the interval
-data = df1["Total Time until Migration Completion in OSM"]
+data = df1["PoC Scenario - Time until Migration Completion in OSM"]
+print(len(data))
 confidence = st.t.interval(
     confidence=0.99,
     df=len(data)-1,
     loc=np.mean(data),
     scale=st.sem(data)
 )
-print(confidence)
-df1["Total Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
-print(len(df1["Total Time until Migration Completion in OSM"]))
+df1["PoC Scenario - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df1 = df1.dropna()
-print(len(df1["Total Time until Migration Completion in OSM"]))
+
+print(len(df1["PoC Scenario - Time until Migration Completion in OSM"]))
 
 # Create 99% confidence interval and replace values within the interval
-data = df2["Target Node Pod Ready"]
+data = df2["Target Pod Ready"]
+print(len(data))
 confidence = st.t.interval(
     confidence=0.99,
     df=len(data)-1,
     loc=np.mean(data),
     scale=st.sem(data)
 )
-print(confidence)
-df2["Target Node Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
-print(len(df2["Target Node Pod Ready"]))
+df2["Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df2 = df2.dropna()
-print(len(df2["Target Node Pod Ready"]))
 
-df1["K8s migration - Total Time until Target Node Pod Ready"] = df2["Target Node Pod Ready"]
+print(len(df2["Target Pod Ready"]))
 
-new_labels = [
+df1["Baseline Scenario - Time until Target Pod Ready"] = df2["Target Pod Ready"]
+
+# Labels for the first and second graphs
+labels_first_graph = [
     'Metrics Reception',
     'Migration Decision',
-    'Target Node Pod Initialization',
-    'Target Node Pod Ready',
-    'Source Node Pod Termination',
-    'Migration Completion in OSM',
-    'Total Time until Target Node Pod Ready',
-    'K8s migration - Total Time until Target Node Pod Ready',
-    'Total Time until Source Node Pod Termination',
-    'Total Time until Migration Completion in OSM',
+    'Target Pod Initialization',
+    'Target Pod Ready',
+    'Source Pod Termination',
+    'Migration Completion in OSM'
 ]
 
-df1 = df1.reindex(columns=new_labels)
+# Define the new labels mapping
+labels_mapping_first_graph = {
+    'Metrics Reception': 'PoC Scenario - Metrics Reception',
+    'Migration Decision': 'PoC Scenario - Migration Decision',
+    'Target Pod Initialization': 'PoC Scenario - Target Pod Initialization',
+    'Target Pod Ready': 'PoC Scenario - Target Pod Ready',
+    'Source Pod Termination': 'PoC Scenario - Source Pod Termination',
+    'Migration Completion in OSM': 'PoC Scenario - Migration Completion in OSM'
+}
 
-# Melt the DataFrame to format it for Seaborn
-df1_melted = pd.melt(df1, var_name='Migration Phase', value_name='Time (s)')
+labels_second_graph = [
+    'Baseline Scenario - Time until Target Pod Ready',
+    'PoC Scenario - Time until Target Pod Ready',
+    'PoC Scenario - Time until Source Pod Termination',
+    'PoC Scenario - Time until Migration Completion in OSM'
+]
 
-# Create the boxplot with broken axis
-fig = plt.figure(figsize=(18, 9))
-gs = gridspec.GridSpec(2, 1, height_ratios=[5, 1])  # create gridspec with larger scale above
+df1_first_graph = df1[labels_first_graph]
+df1_first_graph = df1_first_graph.rename(columns=labels_mapping_first_graph)
 
-# Create the first subplot for larger values
-ax1 = plt.subplot(gs[0])
-sns.boxplot(x='Migration Phase', y='Time (s)', data=df1_melted, ax=ax1)
-ax1.set_ylim(0.4, df1_melted['Time (s)'].max())
+df1_second_graph = df1[labels_second_graph]
+
+# First graph: Melt the DataFrame to format it for Seaborn
+df1_first_melted = pd.melt(df1_first_graph, var_name='Migration Stage', value_name='Time (s)')
+
+# Create the boxplot with broken axis for the first graph
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(24, 12), gridspec_kw={'height_ratios': [5, 1]})
+
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax1)
+ax1.set_ylim(0.4, df1_first_melted['Time (s)'].max()+1)
 ax1.spines['bottom'].set_visible(False)
 ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-# Create the second subplot for smaller values
-ax2 = plt.subplot(gs[1])
-sns.boxplot(x='Migration Phase', y='Time (s)', data=df1_melted, ax=ax2)
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax2)
 ax2.set_ylim(0, 0.04)  # Adjust scale for smaller values
 ax2.spines['top'].set_visible(False)
 
@@ -140,19 +150,51 @@ def wrap_labels(ax, width):
         wrapped_text = "\n".join(textwrap.wrap(text, width))
         labels.append(wrapped_text)
     ax.set_xticklabels(labels, rotation=0, ha='center')
+    ax.tick_params(labelsize = 12)
 
 # Apply new labels
-wrap_labels(ax2, 15)
+wrap_labels(ax2, 25)
 
 # Title and labels
-ax1.set_title('Duration of Migration Phases', fontsize=16)
 ax1.set_xlabel('')
-ax2.set_xlabel('Migration Phase', fontsize=14)
+ax2.set_xlabel('Migration Stage', fontsize=14)
 ax1.set_ylabel('Time (s)', fontsize=14)
-ax2.set_ylabel('Time (s)', fontsize=14)
+ax2.set_ylabel('')
 
 plt.tight_layout()
 
-plt.savefig('migration_phases_boxplot.png', format='png', dpi=300)
+plt.savefig('migration_stages_boxplot.png', format='png', dpi=300)
+
+plt.show()
+
+# Second graph: Melt the DataFrame to format it for Seaborn
+df1_second_melted = pd.melt(df1_second_graph, var_name='Migration Stage', value_name='Time (s)')
+
+# Create the boxplot for the second graph
+fig, ax = plt.subplots(figsize=(24, 12))
+
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_second_melted, ax=ax)
+
+# Add grid lines for better readability
+ax.grid(axis='y', which='both', linestyle='-', linewidth=0.5, color='lightgrey')  # minor and major grid lines
+
+# Customize y-axis ticks and grid lines
+ax.yaxis.set_major_locator(MultipleLocator(5))  # major grid lines every 5 units
+ax.yaxis.set_minor_locator(MultipleLocator(1))  # minor grid lines every 1 unit
+
+# Differentiate grid lines for major and minor ticks
+ax.yaxis.grid(True, which='major', linestyle='-', linewidth=0.8, color='grey')
+ax.yaxis.grid(True, which='minor', linestyle='--', linewidth=0.5, color='lightgrey')
+
+# Function to wrap labels
+wrap_labels(ax, 25)
+
+# Title and labels
+ax.set_xlabel('Migration Stage', fontsize=14)
+ax.set_ylabel('Time (s)', fontsize=14)
+
+plt.tight_layout()
+
+plt.savefig('migration_stages_sum_boxplot.png', format='png', dpi=300)
 
 plt.show()

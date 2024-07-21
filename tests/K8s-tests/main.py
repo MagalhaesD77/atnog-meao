@@ -12,7 +12,7 @@ poll_interval = 1  # Poll interval in seconds
 time_string = ""
 
 with open("results.csv", "w") as log_file:
-    log_file.write("Target Node Pod Initialization,Target Node Pod Read" + "\n")
+    log_file.write("Target Pod Initialization,Target Pod Read" + "\n")
 
 def log_to_csv():
     global time_string
