@@ -44,6 +44,7 @@ confidence = st.t.interval(
     loc=np.mean(data),
     scale=st.sem(data)
 )
+print(confidence)
 df1["PoC Scenario - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
@@ -150,14 +151,14 @@ def wrap_labels(ax, width):
         wrapped_text = "\n".join(textwrap.wrap(text, width))
         labels.append(wrapped_text)
     ax.set_xticklabels(labels, rotation=0, ha='center')
-    ax.tick_params(labelsize = 12)
+    ax.tick_params(labelsize = 20)
 
 # Apply new labels
-wrap_labels(ax2, 25)
+wrap_labels(ax2, 20)
 
 # Title and labels
 ax1.set_xlabel('')
-ax2.set_xlabel('Migration Stage', fontsize=14)
+ax2.set_xlabel('Migration Stage', fontsize=22)
 ax1.set_ylabel('Time (s)', fontsize=14)
 ax2.set_ylabel('')
 
@@ -190,7 +191,7 @@ ax.yaxis.grid(True, which='minor', linestyle='--', linewidth=0.5, color='lightgr
 wrap_labels(ax, 25)
 
 # Title and labels
-ax.set_xlabel('Migration Stage', fontsize=14)
+ax.set_xlabel('Migration Stage', fontsize=22)
 ax.set_ylabel('Time (s)', fontsize=14)
 
 plt.tight_layout()

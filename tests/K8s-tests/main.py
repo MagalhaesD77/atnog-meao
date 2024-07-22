@@ -1,9 +1,12 @@
 import subprocess
 import time
-import logging
+import json
 import threading
-import csv
+import dateutil.parser as dp
+from confluent_kafka import Consumer, KafkaError
 
+containerName = None
+waiting_for_cAdvisor = False
 namespace = "default"
 command = "stress-ng --vm 1 --vm-bytes 4G"  # Infinite timeout
 csvfile = "results.csv"  # CSV file to log times
@@ -32,9 +35,9 @@ def kubectl_apply():
             ["kubectl", "apply", "-f", deployment_file],
             check=True
         )
-        logging.info("Applied deployment file.")
+        print("Applied deployment file.")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to apply deployment: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        print(f"Failed to apply deployment: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
 
 def kubectl_delete():
     try:
@@ -42,9 +45,9 @@ def kubectl_delete():
             ["kubectl", "delete", "-f", deployment_file],
             check=True
         )
-        logging.info("Deleted deployment file.")
+        print("Deleted deployment file.")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to delete deployment: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        print(f"Failed to delete deployment: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
 
 def get_pod_names():
     try:
@@ -55,7 +58,7 @@ def get_pod_names():
         pods = result.stdout.decode('utf-8').split()
         return pods
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to get pods: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        print(f"Failed to get pods: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
         return []
 
 def get_pod_status(pod_name):
@@ -66,8 +69,103 @@ def get_pod_status(pod_name):
         )
         return result.stdout.decode('utf-8').strip()
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to get pod status for {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        print(f"Failed to get pod status for {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
         return None
+    
+def get_pod_container(pod_name):
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pod", pod_name, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[].containerID}"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+        )
+        return result.stdout.decode('utf-8')
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to get pod container for {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        return None
+
+async def processContainerMetrics(cName, values):
+    metrics = calcMetrics(cName, values)
+      
+    memLoad = metrics["memLoad"]
+    print(memLoad)
+    #migrationAlgorithm(cName)
+
+def calcMetrics(self, cName, values, silent=True):
+    memory_size = (8*pow(1024,3))
+
+    # Memory
+    memUsage = values["container_stats"]["memory"]["usage"]
+    #print("Memory Usage:", memUsage)
+    memLoad = (memUsage/memory_size) * 100
+
+    if not silent:
+        print("-------------------------------------------------------")
+        #print(json.dumps(values, indent=2))
+        print("Container ID:", cName)
+        print("Machine Name:", values["machine_name"])
+        print("Timestamp:", values["timestamp"])
+        print("Memory Load:", memLoad)
+        print("-------------------------------------------------------")
+
+    metrics = {
+        "memLoad": memLoad,
+    }
+
+    return metrics
+
+def consume_metrics():
+    global time_string
+    global containerName
+    global waiting_for_cAdvisor
+    kafka_consumer_conf = {
+        'bootstrap.servers': '10.255.32.88:14000',
+        'group.id': 'monitoring',
+        'auto.offset.reset': 'latest'
+    }
+    metrics_collector_kafka_topic = 'k8s-cluster'
+
+    # Create Kafka consumer
+    consumer = Consumer(kafka_consumer_conf)
+
+    # Subscribe to the topic
+    consumer.subscribe([metrics_collector_kafka_topic])
+
+    try:
+        print("Listening to Kafka on topic {}....".format(metrics_collector_kafka_topic))
+        while True:
+            # Poll for messages
+            message = consumer.poll(1.0)
+
+            if message is None:
+                continue
+            if message.error():
+                if message.error().code() == KafkaError._PARTITION_EOF:
+                    # End of partition
+                    continue
+                else:
+                    # Error
+                    print("Error: {}".format(message.error()))
+                    break
+
+            # Process the message
+            values = json.loads(message.value().decode('utf-8'))
+            cName = values["container_Name"]
+            try:
+                print(values["timestamp"])
+                print(containerName)
+                if containerName and containerName in cName:
+                    print(containerName)
+                    if processContainerMetrics(containerName, values) and waiting_for_cAdvisor:
+                        waiting_for_cAdvisor = False
+                        dataCollectionTime = dp.parse(values["timestamp"]).timestamp()
+                        time_string += str(dataCollectionTime) + ","
+                        print(time_string)
+            except RuntimeError as e:
+                print("INFO: Array changed size during latency reading operation")
+
+    except KeyboardInterrupt:
+        # Stop consumer on keyboard interrupt
+        consumer.close()
 
 def exec_command(pod_name):
     try:
@@ -75,27 +173,26 @@ def exec_command(pod_name):
             ["kubectl", "exec", "-n", namespace, "-it", pod_name, "--", "/bin/bash", "-c", command],
             check=True
         )
-        logging.info(f"Executed command on pod: {pod_name}")
+        print(f"Executed command on pod: {pod_name}")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to exec command on pod {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
+        print(f"Failed to exec command on pod {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
 
 def monitor_new_pod(initial_pod, event):
     global time_string
     initial_pods = set(initial_pod)
-    new_pod_appeared_time = None
     while not event.is_set():
         current_pods = set(get_pod_names())
         new_pods = current_pods - initial_pods
         if new_pods:
             new_pod_name = new_pods.pop()
-            logging.info(f"New pod detected: {new_pod_name}")
+            print(f"New pod detected: {new_pod_name}")
             time_string += str(time.time()) + ","
             pod_status = None
             while pod_status != "Running":
                 pod_status = get_pod_status(new_pod_name)
                 if pod_status == "Running":
                     time_string += str(time.time()) + ","
-                    logging.info(f"New pod {new_pod_name} is running")
+                    print(f"New pod {new_pod_name} is running")
                     log_to_csv()
                     event.set()
                     break
@@ -110,6 +207,12 @@ def wait_for_pods(desired_count):
         time.sleep(poll_interval)
 
 def main():
+    global waiting_for_cAdvisor
+    global containerName
+    # Start the kafka metrics consumer
+    metrics_thread = threading.Thread(target=consume_metrics, args=())
+    metrics_thread.start()
+
     while True:
         wait_for_pods(0)
         kubectl_apply()
@@ -126,14 +229,21 @@ def main():
         initial_pod_status = None
         while initial_pod_status != "Running":
             initial_pod_status = get_pod_status(initial_pod)
+            containerName = get_pod_container(initial_pod)
             time.sleep(poll_interval)
         
-        logging.info(f"Initial pod {initial_pod} is running.")
-        
+        print(f"Initial pod {initial_pod} is running.")
+
         # Start the infinite stress command
         stress_thread = threading.Thread(target=exec_command, args=(initial_pod,))
         stress_thread.start()
-        
+
+        waiting_for_cAdvisor = True
+        while True:
+            if not waiting_for_cAdvisor:
+                print("done waiting")
+                break
+
         # Start monitoring for the new pod
         monitor_thread = threading.Thread(target=monitor_new_pod, args=([initial_pod], event))
         monitor_thread.start()

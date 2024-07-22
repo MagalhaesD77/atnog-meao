@@ -3,8 +3,6 @@ import asyncio
 import time
 import threading
 import time
-import subprocess
-import datetime
 import dateutil.parser as dp
 from confluent_kafka import Consumer, KafkaError
 
