@@ -15,13 +15,17 @@ df2 = pd.read_csv(file_path2)
 
 # Drop columns and convert to seconds
 df1 = df1.drop(columns=["Metrics Collection"]) / 1000
-df2 = df2.drop(columns=["Target Pod Initialization"]) / 1000
+df2 = df2.drop(columns=["Metrics Collection"]) / 1000
 
 # Calculate additional metrics
-df1["PoC Scenario - Time until Target Pod Ready"] = (
+df1["PoC Scenario - Time until Target Pod Initialization"] = (
     df1["Metrics Reception"]
     + df1["Migration Decision"]
     + df1["Target Pod Initialization"]
+)
+
+df1["PoC Scenario - Time until Target Pod Ready"] = (
+    df1["PoC Scenario - Time until Target Pod Initialization"]
     + df1["Target Pod Ready"]
 )
 
@@ -52,8 +56,15 @@ df1 = df1.dropna()
 
 print(len(df1["PoC Scenario - Time until Migration Completion in OSM"]))
 
+df2["Baseline Scenario - Time until Target Pod Initialization"] = df2["Target Pod Initialization"]
+
+df2["Baseline Scenario - Time until Target Pod Ready"] = (
+    df2["Target Pod Initialization"]
+    + df2["Target Pod Ready"]
+)
+
 # Create 99% confidence interval and replace values within the interval
-data = df2["Target Pod Ready"]
+data = df2["Baseline Scenario - Time until Target Pod Ready"]
 print(len(data))
 confidence = st.t.interval(
     confidence=0.99,
@@ -61,14 +72,15 @@ confidence = st.t.interval(
     loc=np.mean(data),
     scale=st.sem(data)
 )
-df2["Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
+df2["Baseline Scenario - Time until Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df2 = df2.dropna()
 
-print(len(df2["Target Pod Ready"]))
+print(len(df2["Baseline Scenario - Time until Target Pod Ready"]))
 
-df1["Baseline Scenario - Time until Target Pod Ready"] = df2["Target Pod Ready"]
+df1["Baseline Scenario - Time until Target Pod Initialization"] = df2["Baseline Scenario - Time until Target Pod Initialization"]
+df1["Baseline Scenario - Time until Target Pod Ready"] = df2["Baseline Scenario - Time until Target Pod Ready"]
 
 # Labels for the first and second graphs
 labels_first_graph = [
@@ -91,7 +103,9 @@ labels_mapping_first_graph = {
 }
 
 labels_second_graph = [
+    'Baseline Scenario - Time until Target Pod Initialization',
     'Baseline Scenario - Time until Target Pod Ready',
+    'PoC Scenario - Time until Target Pod Initialization',
     'PoC Scenario - Time until Target Pod Ready',
     'PoC Scenario - Time until Source Pod Termination',
     'PoC Scenario - Time until Migration Completion in OSM'
@@ -174,7 +188,18 @@ df1_second_melted = pd.melt(df1_second_graph, var_name='Migration Stage', value_
 # Create the boxplot for the second graph
 fig, ax = plt.subplots(figsize=(24, 12))
 
-sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_second_melted, ax=ax)
+# Create a custom palette
+custom_palette = {
+    'Baseline Scenario - Time until Target Pod Initialization': 'red',
+    'Baseline Scenario - Time until Target Pod Ready': 'red',
+    'PoC Scenario - Time until Target Pod Initialization': 'blue',
+    'PoC Scenario - Time until Target Pod Ready': 'blue',
+    'PoC Scenario - Time until Source Pod Termination': 'blue',
+    'PoC Scenario - Time until Migration Completion in OSM': 'blue'
+}
+
+# Create the boxplot with the custom palette
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_second_melted, ax=ax, palette=custom_palette)
 
 # Add grid lines for better readability
 ax.grid(axis='y', which='both', linestyle='-', linewidth=0.5, color='lightgrey')  # minor and major grid lines
@@ -188,7 +213,7 @@ ax.yaxis.grid(True, which='major', linestyle='-', linewidth=0.8, color='grey')
 ax.yaxis.grid(True, which='minor', linestyle='--', linewidth=0.5, color='lightgrey')
 
 # Function to wrap labels
-wrap_labels(ax, 25)
+wrap_labels(ax, 20)
 
 # Title and labels
 ax.set_xlabel('Migration Stage', fontsize=22)
