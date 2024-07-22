@@ -5,17 +5,18 @@ import threading
 import dateutil.parser as dp
 from confluent_kafka import Consumer, KafkaError
 
+threshold = (3/8)*100
+memory_size = (8*pow(1024,3))
 containerName = None
 waiting_for_cAdvisor = False
 namespace = "default"
 command = "stress-ng --vm 1 --vm-bytes 4G"  # Infinite timeout
 csvfile = "results.csv"  # CSV file to log times
 deployment_file = "deployment.yaml"
-poll_interval = 1  # Poll interval in seconds
 time_string = ""
 
 with open("results.csv", "w") as log_file:
-    log_file.write("Target Pod Initialization,Target Pod Read" + "\n")
+    log_file.write("Metrics Collection,Target Pod Initialization,Target Pod Read" + "\n")
 
 def log_to_csv():
     global time_string
@@ -78,40 +79,22 @@ def get_pod_container(pod_name):
             ["kubectl", "get", "pod", pod_name, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[].containerID}"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
         )
-        return result.stdout.decode('utf-8')
+        return result.stdout.decode('utf-8').replace("://", "-")
     except subprocess.CalledProcessError as e:
         print(f"Failed to get pod container for {pod_name}: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")
         return None
 
-async def processContainerMetrics(cName, values):
-    metrics = calcMetrics(cName, values)
-      
-    memLoad = metrics["memLoad"]
-    print(memLoad)
-    #migrationAlgorithm(cName)
-
-def calcMetrics(self, cName, values, silent=True):
-    memory_size = (8*pow(1024,3))
+def processContainerMetrics(values):
+    global threshold
+    global memory_size
 
     # Memory
-    memUsage = values["container_stats"]["memory"]["usage"]
-    #print("Memory Usage:", memUsage)
-    memLoad = (memUsage/memory_size) * 100
-
-    if not silent:
-        print("-------------------------------------------------------")
-        #print(json.dumps(values, indent=2))
-        print("Container ID:", cName)
-        print("Machine Name:", values["machine_name"])
-        print("Timestamp:", values["timestamp"])
-        print("Memory Load:", memLoad)
-        print("-------------------------------------------------------")
-
-    metrics = {
-        "memLoad": memLoad,
-    }
-
-    return metrics
+    memLoad = (values["container_stats"]["memory"]["usage"]/memory_size)*100
+    
+    if memLoad > threshold:
+        return True
+    else:
+        return False
 
 def consume_metrics():
     global time_string
@@ -151,12 +134,10 @@ def consume_metrics():
             values = json.loads(message.value().decode('utf-8'))
             cName = values["container_Name"]
             try:
-                print(values["timestamp"])
-                print(containerName)
                 if containerName and containerName in cName:
-                    print(containerName)
-                    if processContainerMetrics(containerName, values) and waiting_for_cAdvisor:
+                    if processContainerMetrics(values) and waiting_for_cAdvisor:
                         waiting_for_cAdvisor = False
+                        containerName = None
                         dataCollectionTime = dp.parse(values["timestamp"]).timestamp()
                         time_string += str(dataCollectionTime) + ","
                         print(time_string)
@@ -196,15 +177,12 @@ def monitor_new_pod(initial_pod, event):
                     log_to_csv()
                     event.set()
                     break
-                time.sleep(poll_interval)
-        time.sleep(poll_interval)
 
 def wait_for_pods(desired_count):
     while True:
         pods = get_pod_names()
         if len(pods) == desired_count:
             break
-        time.sleep(poll_interval)
 
 def main():
     global waiting_for_cAdvisor
@@ -224,13 +202,12 @@ def main():
             pods = get_pod_names()
             if pods:
                 initial_pod = pods[0]
-            time.sleep(poll_interval)
         
         initial_pod_status = None
         while initial_pod_status != "Running":
             initial_pod_status = get_pod_status(initial_pod)
-            containerName = get_pod_container(initial_pod)
-            time.sleep(poll_interval)
+
+        containerName = get_pod_container(initial_pod)
         
         print(f"Initial pod {initial_pod} is running.")
 
