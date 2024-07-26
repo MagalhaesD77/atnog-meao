@@ -26,6 +26,7 @@ def get_containers_info():
     while True:
         try:
             response = requests.get("http://meao-monitoring:8000/containerInfo")
+            print(response)
             idsMonitored = []
             for containerName, container in (response.json()["ContainerInfo"]).items():
                 idsMonitored.append(containerName)

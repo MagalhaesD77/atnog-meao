@@ -74,7 +74,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
     }, []);
 
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8001');
+        const ws = new WebSocket('ws://10.255.32.88:8001');
         setSocket(ws);
     }, []);
 
@@ -86,7 +86,15 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
             socket.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 setMetrics((prevMetrics) => {
-                    if (prevMetrics && data.appi_id in prevMetrics) {
+                    console.log(data)
+                    console.log(prevMetrics)
+                    if(data.appi_id != undefined){
+                        if(!prevMetrics){
+                            prevMetrics = {}
+                        }
+                        if (!(data.appi_id in prevMetrics)){
+                            prevMetrics[data.appi_id] = {}
+                        }
                         if (data.mem_load != undefined && data.cpu_load != undefined) {
                             return {
                                 ...prevMetrics,
@@ -98,7 +106,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                             };
                         }
                         else {
-                            var temp = {
+                            return {
                                 ...prevMetrics,
                                 [data.appi_id]: {
                                     ...prevMetrics[data.appi_id],
@@ -106,20 +114,8 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
                                     lat: data[data.node]
                                 }
                             };
-                            console.log(temp)
-                            return temp
-                        }
-                    } else {
-                        return {
-                            ...prevMetrics,
-                            [data.appi_id]: {
-                                memLoad: data.mem_load,
-                                cpuLoad: data.cpu_load,
-                                node: data.node,
-                                lat: data[data.node]
-                            }
                         };
-                    }
+                    };
                 });
             };
             socket.onclose = () => {

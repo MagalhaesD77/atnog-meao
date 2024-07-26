@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mongo
+  name: mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - env:
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: pass
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: root
+          image: mongo
+          name: mongo
+          volumeMounts:
+            - mountPath: /data/db
+              name: app-mongo-db-data
+      restartPolicy: Always
+      volumes:
+        - name: app-mongo-db-data
+          persistentVolumeClaim:
+            claimName: app-mongo-db-data

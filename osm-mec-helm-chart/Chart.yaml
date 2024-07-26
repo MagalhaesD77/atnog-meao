@@ -1,0 +1,8 @@
+name: osm-mec
+description: A Helm chart for OSM-MEC project
+version: 0.0.1
+apiVersion: v1
+keywords:
+  - osm-mec
+sources:
+home:

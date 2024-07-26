@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: oss
+  name: oss
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oss
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: oss
+    spec:
+      containers:
+        - env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: 10.255.32.88:9999:14000
+            - name: MONGO_PASSWORD
+              value: pass
+            - name: MONGO_USER
+              value: root
+            - name: OSM_HOSTNAME
+              value: 10.255.32.88:9999
+            - name: OSS_PORT
+              value: "8080"
+            - name: OSS_WS_PORT
+              value: "8001"
+          image: localhost:5000/oss:latest
+          imagePullPolicy: Always
+          name: oss
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 8001
+              protocol: TCP
+      restartPolicy: Always

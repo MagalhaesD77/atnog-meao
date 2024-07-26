@@ -46,6 +46,8 @@ async def send_metrics():
                         await websocket.send(json.dumps(metrics))
                 if not lat_queue.empty():
                     lat = lat_queue.get()
+                    print("sending data")
+                    print(lat)
                     for websocket in ws:
                         await websocket.send(json.dumps(lat))
                 await asyncio.sleep(0.1)
@@ -58,7 +60,10 @@ async def send_metrics():
 async def receive_connection(websocket, path):
     ws.append(websocket)
     try:
-        async for message in websocket:
-            await websocket.wait_closed()
+        try:
+            async for message in websocket:
+                await websocket.wait_closed()
+        except Exception as e:
+            asyncio.run(send_metrics())
     finally:
         ws.remove(websocket)

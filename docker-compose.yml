@@ -14,21 +14,21 @@ services:
   oss:
     build: ./oss
     ports:
-      - "${OSS_PORT}:${OSS_PORT}"
-      - "${OSS_WS_PORT}:${OSS_WS_PORT}"
+      - "8080:8080"
+      - "8001:8001"
     expose:
-      - "${OSS_PORT}"
+      - "8080"
     volumes:
       - ./oss:/usr/app
     depends_on:
       - mongo
     environment:
-      - OSM_HOSTNAME=${OSM_IP}
-      - OSS_PORT=${OSS_PORT}
-      - OSS_WS_PORT=${OSS_WS_PORT}
-      - KAFKA_BOOTSTRAP_SERVERS=${OSM_IP}:${KAFKA_PORT}
-      - MONGO_USER=${MONGO_USER}
-      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - OSM_HOSTNAME=10.255.32.88:9999
+      - OSS_PORT=8080
+      - OSS_WS_PORT=8001
+      - KAFKA_BOOTSTRAP_SERVERS=10.255.32.88:9999:14000
+      - MONGO_USER=root
+      - MONGO_PASSWORD=pass
     restart: on-failure
     networks:
       - temp-network
@@ -42,26 +42,13 @@ services:
       # - zookeeper
       - mongo
     environment:
-      - OSM_HOSTNAME=${OSM_IP}
-      - KAFKA_BOOTSTRAP_SERVERS=${OSM_IP}:${KAFKA_PORT}
-      - MONGO_USER=${MONGO_USER}
-      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - OSM_HOSTNAME=10.255.32.88:9999
+      - KAFKA_BOOTSTRAP_SERVERS=10.255.32.88:9999:14000
+      - MONGO_USER=root
+      - MONGO_PASSWORD=pass
     restart: on-failure
     networks:
       - temp-network
-
-  #container-data-api:
-  #  build: ./container-data-api
-  #  ports:
-  #    - "8000:8000"
-  #  environment:
-  #    - PYTHONUNBUFFERED=1
-  #    - NBI_URL=https://${OSM_IP}/osm
-  #    - KUBECTL_COMMAND=${KUBECTL_COMMAND}
-  #    - KUBECTL_CONFIG_PATH=${KUBECTL_CONFIG_PATH}
-  #    - UPDATE_CONTAINER_IDS_FREQ=${UPDATE_CONTAINER_IDS_FREQ}
-  #  networks:
-  #    - temp-network
 
   mongo:
     image: mongo
@@ -69,8 +56,8 @@ services:
       - app-mongo-db-data:/data/db
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: "${MONGO_USER}"
-      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_PASSWORD}"
+      MONGO_INITDB_ROOT_USERNAME: "root"
+      MONGO_INITDB_ROOT_PASSWORD: "pass"
     networks:
       - temp-network
 
@@ -80,10 +67,10 @@ services:
     ports:
       - 8081:8081
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: "${MONGO_USER}"
-      ME_CONFIG_MONGODB_ADMINPASSWORD: "${MONGO_PASSWORD}"
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/
-      ME_CONFIG_MONGODB_ENABLE_ADMIN: "${MONGO_EXPRESS_ENABLE_ADMIN}"
+      ME_CONFIG_MONGODB_ADMINUSERNAME: "root"
+      ME_CONFIG_MONGODB_ADMINPASSWORD: "pass"
+      ME_CONFIG_MONGODB_URL: mongodb://root:pass@mongo:27017/
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
     networks:
       - temp-network
 
