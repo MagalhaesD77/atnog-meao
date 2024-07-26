@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-latency-simulator
+  labels:
+    app: {{ .Release.Name }}-latency-simulator
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-latency-simulator
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-latency-simulator
+    spec:
+      containers:
+        - name: latency-simulator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrapServers }}
+            - name: KAFKA_TOPIC
+              value: {{ .Values.kafka.topic }}
+          ports:
+            - containerPort: {{ .Values.service.port }}

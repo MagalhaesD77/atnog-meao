@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-latency-simulator
+  labels:
+    app: {{ .Release.Name }}-latency-simulator
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 5000
+      nodePort: 30001
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Release.Name }}-latency-simulator

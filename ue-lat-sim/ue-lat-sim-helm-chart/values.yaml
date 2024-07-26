@@ -1,0 +1,20 @@
+replicaCount: 1
+
+image:
+  repository: localhost:5000/ue-lat-sim
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: NodePort
+  port: 5000
+
+kafka:
+  bootstrapServers: "10.255.32.88:14000"
+  topic: "ue-lat"
+
+nodeSelector:
+  kubernetes.io/hostname: k3s-controller-pedrocjdpereira
+
+tolerations: []
+affinity: {}
