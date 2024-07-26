@@ -49,7 +49,7 @@ confidence = st.t.interval(
     scale=st.sem(data)
 )
 print(confidence)
-df1["PoC Scenario - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
+#df1["PoC Scenario - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df1 = df1.dropna()
@@ -72,7 +72,8 @@ confidence = st.t.interval(
     loc=np.mean(data),
     scale=st.sem(data)
 )
-df2["Baseline Scenario - Time until Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
+print(confidence)
+#df2["Baseline Scenario - Time until Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df2 = df2.dropna()
@@ -81,6 +82,11 @@ print(len(df2["Baseline Scenario - Time until Target Pod Ready"]))
 
 df1["Baseline Scenario - Time until Target Pod Initialization"] = df2["Baseline Scenario - Time until Target Pod Initialization"]
 df1["Baseline Scenario - Time until Target Pod Ready"] = df2["Baseline Scenario - Time until Target Pod Ready"]
+
+print("PoC Scenario - Time until Target Pod Ready MEAN:", np.mean(df1["PoC Scenario - Time until Target Pod Ready"]))
+print("Baseline Scenario - Time until Target Pod Ready MEAN:", np.mean(df1["Baseline Scenario - Time until Target Pod Ready"]))
+print("PoC Scenario - Time until Target Pod Ready STDEV:", np.std(df1["PoC Scenario - Time until Target Pod Ready"]))
+print("Baseline Scenario - Time until Target Pod Ready STDEV:", np.std(df1["Baseline Scenario - Time until Target Pod Ready"]))
 
 # Labels for the first and second graphs
 labels_first_graph = [
@@ -178,7 +184,7 @@ ax2.set_ylabel('')
 
 plt.tight_layout()
 
-plt.savefig('migration_stages_boxplot.png', format='png', dpi=300)
+plt.savefig('migration_stages_boxplot.pdf', format='pdf', dpi=300)
 
 plt.show()
 
@@ -190,12 +196,12 @@ fig, ax = plt.subplots(figsize=(24, 12))
 
 # Create a custom palette
 custom_palette = {
-    'Baseline Scenario - Time until Target Pod Initialization': 'red',
-    'Baseline Scenario - Time until Target Pod Ready': 'red',
-    'PoC Scenario - Time until Target Pod Initialization': 'blue',
-    'PoC Scenario - Time until Target Pod Ready': 'blue',
-    'PoC Scenario - Time until Source Pod Termination': 'blue',
-    'PoC Scenario - Time until Migration Completion in OSM': 'blue'
+    'Baseline Scenario - Time until Target Pod Initialization': '#2ca02c',
+    'Baseline Scenario - Time until Target Pod Ready': '#2ca02c',
+    'PoC Scenario - Time until Target Pod Initialization': '#1f77b4',
+    'PoC Scenario - Time until Target Pod Ready': '#1f77b4',
+    'PoC Scenario - Time until Source Pod Termination': '#1f77b4',
+    'PoC Scenario - Time until Migration Completion in OSM': '#1f77b4'
 }
 
 # Create the boxplot with the custom palette
@@ -221,6 +227,6 @@ ax.set_ylabel('Time (s)', fontsize=14)
 
 plt.tight_layout()
 
-plt.savefig('migration_stages_sum_boxplot.png', format='png', dpi=300)
+plt.savefig('migration_stages_sum_boxplot.pdf', format='pdf', dpi=300)
 
 plt.show()
