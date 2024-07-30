@@ -16,9 +16,6 @@ spec:
       - name: stress
         image: alexeiled/stress-ng:latest-ubuntu
         imagePullPolicy: Always
-        resources:
-          requests:
-            memory: "6Gi"
         args:
         - tail
         - -f

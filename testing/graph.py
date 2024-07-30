@@ -7,8 +7,8 @@ import numpy as np
 import scipy.stats as st 
 
 # Reading data from a CSV file
-file_path1 = 'PoC-tests/resultsv2.csv'
-file_path2 = 'K8s-tests/results.csv'
+file_path1 = 'PoC-scenario/results.csv'
+file_path2 = 'baseline-scenario/results.csv'
 
 df1 = pd.read_csv(file_path1)
 df2 = pd.read_csv(file_path2)
@@ -18,29 +18,29 @@ df1 = df1.drop(columns=["Metrics Collection"]) / 1000
 df2 = df2.drop(columns=["Metrics Collection"]) / 1000
 
 # Calculate additional metrics
-df1["PoC Scenario - Time until Target Pod Initialization"] = (
+df1["PoC - Time until Target Pod Initialization"] = (
     df1["Metrics Reception"]
     + df1["Migration Decision"]
     + df1["Target Pod Initialization"]
 )
 
-df1["PoC Scenario - Time until Target Pod Ready"] = (
-    df1["PoC Scenario - Time until Target Pod Initialization"]
+df1["PoC - Time until Target Pod Ready"] = (
+    df1["PoC - Time until Target Pod Initialization"]
     + df1["Target Pod Ready"]
 )
 
-df1["PoC Scenario - Time until Source Pod Termination"] = (
-    df1["PoC Scenario - Time until Target Pod Ready"]
+df1["PoC - Time until Source Pod Termination"] = (
+    df1["PoC - Time until Target Pod Ready"]
     + df1["Source Pod Termination"]
 )
 
-df1["PoC Scenario - Time until Migration Completion in OSM"] = (
-    df1["PoC Scenario - Time until Source Pod Termination"]
+df1["PoC - Time until Migration Completion in OSM"] = (
+    df1["PoC - Time until Source Pod Termination"]
     + df1["Migration Completion in OSM"]
 )
 
 # Create 99% confidence interval and replace values within the interval
-data = df1["PoC Scenario - Time until Migration Completion in OSM"]
+data = df1["PoC - Time until Migration Completion in OSM"]
 print(len(data))
 confidence = st.t.interval(
     confidence=0.99,
@@ -49,22 +49,22 @@ confidence = st.t.interval(
     scale=st.sem(data)
 )
 print(confidence)
-#df1["PoC Scenario - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
+#df1["PoC - Time until Migration Completion in OSM"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df1 = df1.dropna()
 
-print(len(df1["PoC Scenario - Time until Migration Completion in OSM"]))
+print(len(df1["PoC - Time until Migration Completion in OSM"]))
 
-df2["Baseline Scenario - Time until Target Pod Initialization"] = df2["Target Pod Initialization"]
+df2["Baseline - Time until Target Pod Initialization"] = df2["Target Pod Initialization"]
 
-df2["Baseline Scenario - Time until Target Pod Ready"] = (
+df2["Baseline - Time until Target Pod Ready"] = (
     df2["Target Pod Initialization"]
     + df2["Target Pod Ready"]
 )
 
 # Create 99% confidence interval and replace values within the interval
-data = df2["Baseline Scenario - Time until Target Pod Ready"]
+data = df2["Baseline - Time until Target Pod Ready"]
 print(len(data))
 confidence = st.t.interval(
     confidence=0.99,
@@ -73,20 +73,20 @@ confidence = st.t.interval(
     scale=st.sem(data)
 )
 print(confidence)
-#df2["Baseline Scenario - Time until Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
+#df2["Baseline - Time until Target Pod Ready"] = [x if confidence[0] < x < confidence[1] else np.nan for x in data]
 
 # Drop rows with NaN values
 df2 = df2.dropna()
 
-print(len(df2["Baseline Scenario - Time until Target Pod Ready"]))
+print(len(df2["Baseline - Time until Target Pod Ready"]))
 
-df1["Baseline Scenario - Time until Target Pod Initialization"] = df2["Baseline Scenario - Time until Target Pod Initialization"]
-df1["Baseline Scenario - Time until Target Pod Ready"] = df2["Baseline Scenario - Time until Target Pod Ready"]
+df1["Baseline - Time until Target Pod Initialization"] = df2["Baseline - Time until Target Pod Initialization"]
+df1["Baseline - Time until Target Pod Ready"] = df2["Baseline - Time until Target Pod Ready"]
 
-print("PoC Scenario - Time until Target Pod Ready MEAN:", np.mean(df1["PoC Scenario - Time until Target Pod Ready"]))
-print("Baseline Scenario - Time until Target Pod Ready MEAN:", np.mean(df1["Baseline Scenario - Time until Target Pod Ready"]))
-print("PoC Scenario - Time until Target Pod Ready STDEV:", np.std(df1["PoC Scenario - Time until Target Pod Ready"]))
-print("Baseline Scenario - Time until Target Pod Ready STDEV:", np.std(df1["Baseline Scenario - Time until Target Pod Ready"]))
+print("PoC - Time until Target Pod Ready MEAN:", np.mean(df1["PoC - Time until Target Pod Ready"]))
+print("Baseline - Time until Target Pod Ready MEAN:", np.mean(df1["Baseline - Time until Target Pod Ready"]))
+print("PoC - Time until Target Pod Ready STDEV:", np.std(df1["PoC - Time until Target Pod Ready"]))
+print("Baseline - Time until Target Pod Ready STDEV:", np.std(df1["Baseline - Time until Target Pod Ready"]))
 
 # Labels for the first and second graphs
 labels_first_graph = [
@@ -100,27 +100,38 @@ labels_first_graph = [
 
 # Define the new labels mapping
 labels_mapping_first_graph = {
-    'Metrics Reception': 'PoC Scenario - Metrics Reception',
-    'Migration Decision': 'PoC Scenario - Migration Decision',
-    'Target Pod Initialization': 'PoC Scenario - Target Pod Initialization',
-    'Target Pod Ready': 'PoC Scenario - Target Pod Ready',
-    'Source Pod Termination': 'PoC Scenario - Source Pod Termination',
-    'Migration Completion in OSM': 'PoC Scenario - Migration Completion in OSM'
+    'Metrics Reception': 'Metrics Reception',
+    'Migration Decision': 'Migration Decision',
+    'Target Pod Initialization': 'Target Pod Initialization',
+    'Target Pod Ready': 'Target Pod Ready',
+    'Source Pod Termination': 'Source Pod Termination',
+    'Migration Completion in OSM': 'Migration Completion in OSM'
 }
 
 labels_second_graph = [
-    'Baseline Scenario - Time until Target Pod Initialization',
-    'Baseline Scenario - Time until Target Pod Ready',
-    'PoC Scenario - Time until Target Pod Initialization',
-    'PoC Scenario - Time until Target Pod Ready',
-    'PoC Scenario - Time until Source Pod Termination',
-    'PoC Scenario - Time until Migration Completion in OSM'
+    'Baseline - Time until Target Pod Initialization',
+    'Baseline - Time until Target Pod Ready',
+    'PoC - Time until Target Pod Initialization',
+    'PoC - Time until Target Pod Ready',
+    'PoC - Time until Source Pod Termination',
+    'PoC - Time until Migration Completion in OSM'
 ]
+
+# Define the new labels mapping
+labels_mapping_second_graph = {
+    'Baseline - Time until Target Pod Initialization': 'Time until Target Pod Initialization ',
+    'Baseline - Time until Target Pod Ready': 'Time until Target Pod Ready ',
+    'PoC - Time until Target Pod Initialization': 'Time until Target Pod Initialization',
+    'PoC - Time until Target Pod Ready': 'Time until Target Pod Ready',
+    'PoC - Time until Source Pod Termination': 'Time until Source Pod Termination',
+    'PoC - Time until Migration Completion in OSM': 'Time until Migration Completion in OSM'
+}
 
 df1_first_graph = df1[labels_first_graph]
 df1_first_graph = df1_first_graph.rename(columns=labels_mapping_first_graph)
 
 df1_second_graph = df1[labels_second_graph]
+df1_second_graph = df1_second_graph.rename(columns=labels_mapping_second_graph)
 
 # First graph: Melt the DataFrame to format it for Seaborn
 df1_first_melted = pd.melt(df1_first_graph, var_name='Migration Stage', value_name='Time (s)')
@@ -128,12 +139,12 @@ df1_first_melted = pd.melt(df1_first_graph, var_name='Migration Stage', value_na
 # Create the boxplot with broken axis for the first graph
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(24, 12), gridspec_kw={'height_ratios': [5, 1]})
 
-sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax1)
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax1, width=0.35, flierprops={'markersize': 10})
 ax1.set_ylim(0.4, df1_first_melted['Time (s)'].max()+1)
 ax1.spines['bottom'].set_visible(False)
 ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax2)
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax2, width=0.35, flierprops={'markersize': 10})
 ax2.set_ylim(0, 0.04)  # Adjust scale for smaller values
 ax2.spines['top'].set_visible(False)
 
@@ -171,15 +182,26 @@ def wrap_labels(ax, width):
         wrapped_text = "\n".join(textwrap.wrap(text, width))
         labels.append(wrapped_text)
     ax.set_xticklabels(labels, rotation=0, ha='center')
-    ax.tick_params(labelsize = 20)
+    ax.xaxis.set_tick_params(labelsize = 35)
 
 # Apply new labels
-wrap_labels(ax2, 20)
+ax1.yaxis.set_tick_params(labelsize = 30)
+ax2.yaxis.set_tick_params(labelsize = 30)
+wrap_labels(ax2, 14)
+
+handles = [
+    plt.Line2D([0], [0], color='#2ca02c', lw=4, label='Baseline Scenario'),
+    plt.Line2D([0], [0], color='#1f77b4', lw=4, label='PoC Scenario')
+]
+
+# Adding the legend above the plots
+ax1.legend(handles=handles, labels=['Baseline Scenario', 'PoC Scenario'],
+           loc='upper center', fontsize=30, bbox_to_anchor=(0.5, 1.15), ncol=2)
 
 # Title and labels
 ax1.set_xlabel('')
-ax2.set_xlabel('Migration Stage', fontsize=22)
-ax1.set_ylabel('Time (s)', fontsize=14)
+ax2.set_xlabel('')
+ax1.set_ylabel('Time (s)', fontsize=30)
 ax2.set_ylabel('')
 
 plt.tight_layout()
@@ -196,16 +218,16 @@ fig, ax = plt.subplots(figsize=(24, 12))
 
 # Create a custom palette
 custom_palette = {
-    'Baseline Scenario - Time until Target Pod Initialization': '#2ca02c',
-    'Baseline Scenario - Time until Target Pod Ready': '#2ca02c',
-    'PoC Scenario - Time until Target Pod Initialization': '#1f77b4',
-    'PoC Scenario - Time until Target Pod Ready': '#1f77b4',
-    'PoC Scenario - Time until Source Pod Termination': '#1f77b4',
-    'PoC Scenario - Time until Migration Completion in OSM': '#1f77b4'
+    'Time until Target Pod Initialization ': '#2ca02c',
+    'Time until Target Pod Ready ': '#2ca02c',
+    'Time until Target Pod Initialization': '#1f77b4',
+    'Time until Target Pod Ready': '#1f77b4',
+    'Time until Source Pod Termination': '#1f77b4',
+    'Time until Migration Completion in OSM': '#1f77b4'
 }
 
 # Create the boxplot with the custom palette
-sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_second_melted, ax=ax, palette=custom_palette)
+sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_second_melted, ax=ax, palette=custom_palette, width=0.35, flierprops={'markersize': 10})
 
 # Add grid lines for better readability
 ax.grid(axis='y', which='both', linestyle='-', linewidth=0.5, color='lightgrey')  # minor and major grid lines
@@ -219,11 +241,16 @@ ax.yaxis.grid(True, which='major', linestyle='-', linewidth=0.8, color='grey')
 ax.yaxis.grid(True, which='minor', linestyle='--', linewidth=0.5, color='lightgrey')
 
 # Function to wrap labels
-wrap_labels(ax, 20)
+ax.yaxis.set_tick_params(labelsize = 30)
+wrap_labels(ax, 15)
+
+# Adding the legend above the plots
+ax.legend(handles=handles, labels=['Baseline Scenario', 'PoC Scenario'],
+           loc='upper center', fontsize=30, bbox_to_anchor=(0.5, 1.15), ncol=2)
 
 # Title and labels
-ax.set_xlabel('Migration Stage', fontsize=22)
-ax.set_ylabel('Time (s)', fontsize=14)
+ax.set_xlabel('')
+ax.set_ylabel('Time (s)', fontsize=30)
 
 plt.tight_layout()
 

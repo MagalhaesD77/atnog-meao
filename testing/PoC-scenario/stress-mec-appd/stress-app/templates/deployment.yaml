@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stress-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stress
+  template:
+    metadata:
+      labels:
+        app: stress
+    spec:
+      containers:
+      - name: stress
+        image: alexeiled/stress-ng:latest-ubuntu
+        imagePullPolicy: Always
+        args:
+        - tail
+        - -f
+        - /dev/null
+        securityContext:
+          # privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+        volumeMounts:
+        - name: dockersocket
+          mountPath: /var/run/docker.sock
+        - name: cgroupfs
+          mountPath: /sys/fs/cgroup
+      volumes:
+      - hostPath:
+          path: /var/run/docker.sock
+        name: dockersocket
+      - hostPath:
+          path: /sys/fs/cgroup
+        name: cgroupfs

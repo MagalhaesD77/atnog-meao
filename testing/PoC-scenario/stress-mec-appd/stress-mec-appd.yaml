@@ -1,0 +1,32 @@
+mec-appd:
+  id: stress-mec-appd
+  name: stress-mec-appd
+  provider: IT
+  soft-version: "1.0"
+  version: '1.0'
+  mec-version: '1.0'
+  info-name: Stress App
+  description: A Helm chart for stress
+  ext-cpd:
+    - id: mgmtnet-ext
+      k8s-cluster-net: mgmtnet
+      layer-protocol:
+        - "IPV4"
+  artifacts:
+    - name: stress-app
+      description: Helm Chart for a Stress App
+      type: helm3
+      file: helm.tgz
+  migration-policy:
+    id: stress-app-migration-policy
+    name: Stress App Migration Policy
+    enabled: true
+    migration-operation-type: OR
+    cpu-criteria:
+      cpu-threshold: 6
+      cpu-window-size: 10
+      cpu-sliding-factor: 1
+      threshold-time: 5
+    mem-criteria:
+      mem-threshold: 4
+      threshold-time: 3
