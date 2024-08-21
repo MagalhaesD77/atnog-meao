@@ -18,6 +18,7 @@ def get_pod_name():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
         )
         pods = result.stdout.decode('utf-8').split()
+        print(result.stdout.decode('utf-8'))
         return pods
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to get pods: {e.stderr.decode('utf-8') if e.stderr else 'No stderr output'}")

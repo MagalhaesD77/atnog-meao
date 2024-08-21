@@ -8,6 +8,24 @@ from osmclient import client
 from osmclient.common.exceptions import ClientException, OsmHttpException
 
 class NBIConnector:
+    """
+    This class provides functions for simplifying interactions with OSM's NBI and the Kubernetes API
+
+    ...
+
+    Attributes
+    ----------
+    osm_hostname : str
+        IP address to be used to communicate with OSM's NBI
+    kubectl_command : str
+        path to kubectl command
+    kubectl_config_path : str
+        path to store the kube config to be used by the kubectl command to interact with the cluster
+    nbi_client : osmclient.Client
+        instance of OSM Client to be used to communicate with OSM's NBI
+    oss_hostname: str
+        IP address to be used to communicate with the OSS
+    """
 
     def __init__(self, osm_hostname, oss_hostname, kubectl_command, kubectl_config_path) -> None:
         self.osm_hostname = osm_hostname
@@ -22,6 +40,9 @@ class NBIConnector:
             yaml.dump(kubectl_config["credentials"], file)
     
     def getKubeConfig(self):
+        """
+        Interacts with OSM's NBI to get the kube config to be used by the kubectl command to interact with the cluster
+        """
         kubectl_config = None
         try:
             kubectl_config = self.callNBI(self.nbi_client.k8scluster.list)[0]
@@ -32,6 +53,14 @@ class NBIConnector:
         return kubectl_config
     
     def get_pod_status(self, namespace):
+        """
+        Interacts with the Kubernetes API to get information relating to every pod in a specified namespace
+
+        Parameters
+        ----------
+        namespace : str
+            kubernetes namespace to collect information from
+        """
         command = (
             "{} --kubeconfig={} get pods -n {} -o=json".format(
                 self.kubectl_command,
@@ -40,15 +69,18 @@ class NBIConnector:
             )
         )
         try:
-            # Execute the kubectl command and capture the output
+            # execute the kubectl command and capture the output
             pods = json.loads(subprocess.check_output(command.split()))['items']
         except subprocess.CalledProcessError as e:
-            # Handle any errors if the command fails
+            # handle any errors if the command fails
             print("Error executing kubectl command:", e)
         pod_status = {pod['metadata']['name']: pod['status']['phase'] for pod in pods}
         return pod_status
     
     def getNodeSpecs(self):
+        """
+        Interacts with the Kubernetes API to get information relating to the cluster's nodes and the corresponding cadvisor pods
+        """
         nodeSpecs = {}
 
         command = (
@@ -58,10 +90,10 @@ class NBIConnector:
             )
         )
         try:
-            # Execute the kubectl command and capture the output
+            # execute the kubectl command and capture the output
             node_info = json.loads(subprocess.check_output(command.split()))
         except subprocess.CalledProcessError as e:
-            # Handle any errors if the command fails
+            # handle any errors if the command fails
             print("Error executing kubectl command:", e)
             return nodeSpecs
         
@@ -78,10 +110,10 @@ class NBIConnector:
             )
         )
         try:
-            # Execute the kubectl command and capture the output
+            # execute the kubectl command and capture the output
             cadvisor_pods = json.loads(subprocess.check_output(command.split()))
         except subprocess.CalledProcessError as e:
-            # Handle any errors if the command fails
+            # handle any errors if the command fails
             print("Error executing kubectl command:", e)
             return nodeSpecs
 
@@ -91,7 +123,17 @@ class NBIConnector:
 
         return nodeSpecs
     
-    def processMigrationPolicy(self, migration_policy, nodeSpecs, nodeName):
+    def processMigrationPolicy(self, migration_policy, nodeInfo):
+        """
+        Process the MEC application migration policy information obtained from the OSS
+
+        Parameters
+        ----------
+        migration_policy : dict
+            migration policy information
+        nodeInfo : dict
+            dictionary storing information relating to the node in which the MEC Application is deployed
+        """
         if not migration_policy["enabled"]:
             return {
                 "cpu_load_thresh": None,
@@ -102,13 +144,13 @@ class NBIConnector:
         cpu_load_thresh = None
         mem_load_thresh = None
         mobility_migration_factor = None
-        if "cpu-criteria" in migration_policy and nodeName in nodeSpecs:
-            cpu_load_thresh = (migration_policy["cpu-criteria"]["allocated-cpu"]/nodeSpecs[nodeName]["num_cpu_cores"])*100
-            cpu_surge_capacity = (migration_policy["cpu-criteria"]["cpu-surge-capacity"]/nodeSpecs[nodeName]["num_cpu_cores"])*100
+        if "cpu-criteria" in migration_policy:
+            cpu_load_thresh = (migration_policy["cpu-criteria"]["allocated-cpu"]/nodeInfo["num_cpu_cores"])*100
+            cpu_surge_capacity = (migration_policy["cpu-criteria"]["cpu-surge-capacity"]/nodeInfo["num_cpu_cores"])*100
         
-        if "mem-criteria" in migration_policy and nodeName in nodeSpecs:
-            mem_load_thresh = ((migration_policy["mem-criteria"]["allocated-mem"]/1024)/nodeSpecs[nodeName]["memory_size"])*100
-            mem_surge_capacity = ((migration_policy["mem-criteria"]["mem-surge-capacity"]/1024)/nodeSpecs[nodeName]["memory_size"])*100
+        if "mem-criteria" in migration_policy:
+            mem_load_thresh = ((migration_policy["mem-criteria"]["allocated-mem"]/1024)/nodeInfo["memory_size"])*100
+            mem_surge_capacity = ((migration_policy["mem-criteria"]["mem-surge-capacity"]/1024)/nodeInfo["memory_size"])*100
 
         if "mobility-criteria" in migration_policy:
             mobility_migration_factor = migration_policy["mobility-criteria"]["mobility-migration-factor"]
@@ -121,10 +163,21 @@ class NBIConnector:
             "mobility-migration-factor": mobility_migration_factor,
         }
 
-
     def getContainerInfo(self, nodeSpecs):
+        """
+        Interacts with both OSM's NBI and the Kubernetes API to get information relating to the every OSM-deployed container
+
+        Parameters
+        ----------
+        nodeSpecs : dict
+            dictionary storing information relating to the cluster's nodes
+        """
+        # this resets the value of the self._apiResource variable, avoiding a bug in the osmclient
         self.callNBI(self.nbi_client.__init__, host=self.osm_hostname, port=9999,sol005=True)
+
+        # get all ns instances
         ns_instances = self.callNBI(self.nbi_client.ns.list)
+        # get all mec apps
         mec_apps = self.callOSS("/mec-appis")
         
         containerInfo = {}
@@ -145,10 +198,17 @@ class NBIConnector:
         else:
             mec_apps = json.loads(mec_apps)
 
+        # iterate through each ns instance
         for ns_instance in ns_instances:
-            if "deployed" not in ns_instance["_admin"] or "K8s" not in ns_instance["_admin"]["deployed"]:
+            if ("deployed" not in ns_instance["_admin"]
+                or "K8s" not in ns_instance["_admin"]["deployed"]
+                or not ns_instance["_admin"]["deployed"]["K8s"]
+                or len(ns_instance["_admin"]["deployed"]["K8s"]) == 0
+            ):
                 continue
             ns_id = ns_instance["_id"]
+
+            # get all associated vnf instances
             vnf_ids = ns_instance["constituent-vnfr-ref"]
             vnf_instances = {}
             for vnf_id in vnf_ids:
@@ -156,55 +216,82 @@ class NBIConnector:
                 if vnfContent:
                     vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
 
-            kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
+            # get all associated kdu instances
+            kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]                
+            namespace = kdu_instances[0]["namespace"]
+
+            # get all associated kubernetes pods
+            command = (
+                "{} --kubeconfig={} --namespace={} get pods -l osm.etsi.org/ns-id={} -o=json".format(
+                    self.kubectl_command,
+                    self.kubectl_config_path,
+                    namespace,
+                    ns_id,
+                )
+            )
+            try:
+                # Execute the kubectl command and capture the output
+                k8s_info = json.loads(subprocess.check_output(command.split()))
+            except subprocess.CalledProcessError as e:
+                # Handle any errors if the command fails
+                print("Error executing kubectl command:", e)
+                return containerInfo
+
+            # iterate through each kdu instance
             for kdu in kdu_instances:
                 kdu_instance = kdu["kdu-instance"]
                 member_vnf_index = kdu["member-vnf-index"]
-                namespace = kdu["namespace"]
                 vnf_id = vnf_instances[member_vnf_index]
-
-                command = (
-                    "{} --kubeconfig={} --namespace={} get pods -l osm.etsi.org/ns-id={} -o=json".format(
-                        self.kubectl_command,
-                        self.kubectl_config_path,
-                        namespace,
-                        ns_id,
-                    )
-                )
-                try:
-                    # Execute the kubectl command and capture the output
-                    k8s_info = json.loads(subprocess.check_output(command.split()))
-                except subprocess.CalledProcessError as e:
-                    # Handle any errors if the command fails
-                    print("Error executing kubectl command:", e)
-                    return containerInfo
                 
+                # iterate through each kubernetes pod
                 for pod in k8s_info["items"]:
-                    if "deletionGracePeriodSeconds" in pod["metadata"] and "deletionTimestamp" in pod["metadata"]:
+                    if (
+                        ("deletionGracePeriodSeconds" in pod["metadata"] and "deletionTimestamp" in pod["metadata"]) 
+                        or "nodeName" not in pod["spec"] 
+                        or "containerStatuses" not in pod["status"]
+                    ):
                         continue
-                    if "nodeName" in pod["spec"]:
-                        nodeName = pod["spec"]["nodeName"]
-                        migration_policy = None
-                        for mec_app in mec_apps:
-                            if mec_app["appi_id"] == ns_id and mec_app["vnf_id"] == vnf_id:
-                                migration_policy = self.processMigrationPolicy(mec_app["migration_policy"], nodeSpecs, nodeName)
-                                break
-                        if "containerStatuses" in pod["status"]:
-                            containers = pod["status"]["containerStatuses"]
-                            for container in containers:
-                                if "containerID" in container:
-                                    id = container["containerID"]
-                                    containerInfo[id.strip('"').split('/')[-1]] = {
-                                        "ns_id": ns_id,
-                                        "vnf_id": vnf_id,
-                                        "kdu_id": kdu_instance,
-                                        "node": nodeName,
-                                        "migration_policy": migration_policy,
-                                    }
+
+                    # find the corresponding mec app and process its migration policy
+                    nodeName = pod["spec"]["nodeName"]
+                    migration_policy = None
+                    for mec_app in mec_apps:
+                        if (mec_app["appi_id"] == ns_id
+                            and mec_app["vnf_id"] == vnf_id
+                            and mec_app["kdu_id"] == kdu_instance
+                            and nodeName in nodeSpecs
+                        ):
+                            migration_policy = self.processMigrationPolicy(mec_app["migration_policy"], nodeSpecs[nodeName])
+                            break
+
+                    # iterate through each container
+                    containers = pod["status"]["containerStatuses"]
+                    for container in containers:
+                        if "containerID" in container:
+                            # store the container's information in the containerInfo dictionary associated to its ID
+                            containerInfo[container["containerID"].strip('"').split('/')[-1]] = {
+                                "ns_id": ns_id,
+                                "vnf_id": vnf_id,
+                                "kdu_id": kdu_instance,
+                                "node": nodeName,
+                                "migration_policy": migration_policy,
+                            }
 
         return containerInfo
     
     def migrate(self, cName, container, node):
+        """
+        Interacts with OSM's NBI to schedule a migration operation
+
+        Parameters
+        ----------
+        cName : str
+            the migrating container's ID
+        container : dict
+            information relating to the migrating container, obtained from the containerInfo dictionary
+        node: str
+            name of the migration target node
+        """
         print("MIGRATING CONTAINER TO NODE {}".format(node))
         print("CONTAINER ID: {}".format(cName))
         print("NETWORK SERVICE ID: {}".format(container["ns_id"]))
@@ -223,7 +310,36 @@ class NBIConnector:
         except Exception as e:
             print("ERROR: {}".format(e))
 
+    def getOperationState(self, op_id):
+        """
+        Interacts with OSM's NBI to obtain the status of an nslcmop
+
+        Parameters
+        ----------
+        op_id : str
+            the ID of the nslcmop
+        """
+        try:
+            return self.callNBI(self.nbi_client.ns.get_op, op_id)["operationState"]
+        except Exception as e:
+            print("Error finding nslcmop:", e)
+            return "NOT FOUND"
+        
     def callNBI(self, func, *args, **kwargs):
+        """
+        Function to simplify interactions with OSM's NBI
+
+        Parameters
+        ----------
+        func : callable
+            the function that will be executed within the `callNBI` method.
+        
+        *args : tuple
+            positional arguments that will be passed to the `func` when it is called.
+            
+        **kwargs : dict
+            keyword arguments that will be passed to the `func` when it is called.
+        """
         try:
             return func(*args, **kwargs)
         except (OsmHttpException) as e:
@@ -235,29 +351,21 @@ class NBIConnector:
             return None
         
     def callOSS(self, endpoint):
+        """
+        Function to make HTTP GET requests to the OSS endpoint.
+
+        Parameters
+        ----------
+        endpoint : str
+            the specific API endpoint to be appended to the base OSS hostname for the HTTP request.
+        """
         endpoint = self.oss_hostname + endpoint
-        result = {'error': True, 'data': ''}
 
         try:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
                 r = requests.get(endpoint)
         except Exception as e:
-            result['data'] = str(e)
-            return result
+            return {'error': True, 'data': str(e)}
 
-        if r.status_code == requests.codes.ok:
-            result['error'] = False
-
-        result['data'] = r.text
-        info = r.text
-
-        return info
-        
-    def getOperationState(self, op_id):
-        try:
-            return self.callNBI(self.nbi_client.ns.get_op, op_id)["operationState"]
-        except Exception as e:
-            print("Error finding nslcmop:", e)
-            return "NOT FOUND"
-        
+        return r.text
