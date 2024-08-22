@@ -330,7 +330,7 @@ class MEAO:
             if op_id:
                 self.migratingContainers[cName] = op_id
 
-    async def processContainerMetrics(self, cName, values, container=None):
+    def processContainerMetrics(self, cName, values, container=None):
         """
         Processes the metrics information relating to a node or container and subsequently runs the migration algorithm
 
@@ -353,7 +353,7 @@ class MEAO:
             self.containerInfo[cName]["memLoad"] = metrics["memLoad"]
             self.migrationAlgorithm(cName)
     
-    async def processContainerLatencies(self, cName, values):
+    def processContainerLatencies(self, cName, values):
         """
         Processes latency information and subsequently runs the migration algorithm
 
@@ -511,7 +511,8 @@ class MEAO:
                     # if so, process the metrics information received
                     for node, nodeInfo in self.nodeSpecs.items():
                         if nodeInfo["cadvisor"] == machine_name:
-                            asyncio.run(self.processContainerMetrics(node, values))
+                            t = threading.Thread(target=self.processContainerMetrics, args=(node, values,))
+                            t.start()
                             break
                 # if the received information is related to a container
                 try:
@@ -523,9 +524,10 @@ class MEAO:
                                 dataCollectionTime = dp.parse(values["timestamp"]).timestamp()
                                 self.log[containerName] = str(dataCollectionTime) + ","
                                 self.log[containerName] += str(time.time()) + ","
-                            asyncio.run(self.processContainerMetrics(containerName, values, container))
+                            t = threading.Thread(target=self.processContainerMetrics, args=(containerName, values, container,))
+                            t.start()
                 except RuntimeError as e:
-                    print("INFO: Array changed size during latency reading operation")
+                    print("INFO: Exception while processing kafka messages: ", e)
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
@@ -569,9 +571,10 @@ class MEAO:
                     # since information regarding every node is received, each container's latency information 
                     # must be processed to decide whether a migration operation must be scheduled
                     for containerName in self.containerInfo.keys():
-                        asyncio.run(self.processContainerLatencies(containerName, values))
+                        t = threading.Thread(target=self.processContainerLatencies, args=(containerName, values,))
+                        t.start()
                 except RuntimeError as e:
-                    print("INFO: Array changed size during latency reading operation")
+                    print("INFO: Exception while processing kafka messages: ", e)
 
         except KeyboardInterrupt:
             # Stop consumer on keyboard interrupt
