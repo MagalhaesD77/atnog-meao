@@ -346,7 +346,7 @@ class NBIConnector:
             self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
             print(f"An error occurred: {e}")
             return func(*args, **kwargs)
-        except (ConnectionError, ClientException, requests.exceptions.ReadTimeout) as e:
+        except Exception as e:
             print(f"An error occurred: {e}")
             return None
         
