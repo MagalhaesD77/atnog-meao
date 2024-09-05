@@ -14,12 +14,13 @@ topic = "ue-lat"
 app = Flask(__name__)
 
 # List of K3s node names
-k3s_nodes = ["k3s-worker1-pedrocjdpereira", "k3s-worker2-pedrocjdpereira"]
+k3s_nodes = ["k3s-worker1-pedrocjdpereira", "k3s-worker2-pedrocjdpereira", "k3s-controller-pedrocjdpereira"]
 
 # Initial latencies and target latencies
 latencies = {
     "k3s-worker1-pedrocjdpereira": 10,
-    "k3s-worker2-pedrocjdpereira": 100,
+    "k3s-worker2-pedrocjdpereira": 10,
+    "k3s-controller-pedrocjdpereira": 1000,
 }
 target_latencies = latencies.copy()
 

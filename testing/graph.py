@@ -137,7 +137,7 @@ df1_second_graph = df1_second_graph.rename(columns=labels_mapping_second_graph)
 df1_first_melted = pd.melt(df1_first_graph, var_name='Migration Stage', value_name='Time (s)')
 
 # Create the boxplot with broken axis for the first graph
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(24, 12), gridspec_kw={'height_ratios': [5, 1]})
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(24, 12), gridspec_kw={'height_ratios': [9, 3]})
 
 sns.boxplot(x='Migration Stage', y='Time (s)', data=df1_first_melted, ax=ax1, width=0.35, flierprops={'markersize': 10})
 ax1.set_ylim(0.4, df1_first_melted['Time (s)'].max()+1)
@@ -155,8 +155,8 @@ ax1.plot((-d, +d), (-d, +d), **kwargs)
 ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)
 
 kwargs.update(transform=ax2.transAxes)
-ax2.plot((-d, +d), (1.10 - 8*d, 1.10 + d), **kwargs)
-ax2.plot((1 - d, 1 + d), (1.10 - 8*d, 1.10 + d), **kwargs)
+ax2.plot((-d, +d), (1.10 - 5*d, 1.10 + d), **kwargs)
+ax2.plot((1 - d, 1 + d), (1.10 - 5*d, 1.10 + d), **kwargs)
 
 # Add grid lines for better readability
 ax1.grid(axis='y', which='both', linestyle='-', linewidth=0.5, color='lightgrey')  # minor and major grid lines
@@ -182,11 +182,11 @@ def wrap_labels(ax, width):
         wrapped_text = "\n".join(textwrap.wrap(text, width))
         labels.append(wrapped_text)
     ax.set_xticklabels(labels, rotation=0, ha='center')
-    ax.xaxis.set_tick_params(labelsize = 35)
+    ax.xaxis.set_tick_params(labelsize = 40)
 
 # Apply new labels
-ax1.yaxis.set_tick_params(labelsize = 30)
-ax2.yaxis.set_tick_params(labelsize = 30)
+ax1.yaxis.set_tick_params(labelsize = 40)
+ax2.yaxis.set_tick_params(labelsize = 40)
 wrap_labels(ax2, 14)
 
 handles = [
@@ -196,12 +196,12 @@ handles = [
 
 # Adding the legend above the plots
 ax1.legend(handles=handles, labels=['Baseline Scenario', 'PoC Scenario'],
-           loc='upper center', fontsize=30, bbox_to_anchor=(0.5, 1.15), ncol=2)
+           loc='upper center', fontsize=40, bbox_to_anchor=(0.5, 1.15), ncol=2)
 
 # Title and labels
 ax1.set_xlabel('')
 ax2.set_xlabel('')
-ax1.set_ylabel('Time (s)', fontsize=30)
+ax1.set_ylabel('Time (s)', fontsize=40)
 ax2.set_ylabel('')
 
 plt.tight_layout()
@@ -241,16 +241,16 @@ ax.yaxis.grid(True, which='major', linestyle='-', linewidth=0.8, color='grey')
 ax.yaxis.grid(True, which='minor', linestyle='--', linewidth=0.5, color='lightgrey')
 
 # Function to wrap labels
-ax.yaxis.set_tick_params(labelsize = 30)
+ax.yaxis.set_tick_params(labelsize = 40)
 wrap_labels(ax, 15)
 
 # Adding the legend above the plots
 ax.legend(handles=handles, labels=['Baseline Scenario', 'PoC Scenario'],
-           loc='upper center', fontsize=30, bbox_to_anchor=(0.5, 1.15), ncol=2)
+           loc='upper center', fontsize=40, bbox_to_anchor=(0.5, 1.15), ncol=2)
 
 # Title and labels
 ax.set_xlabel('')
-ax.set_ylabel('Time (s)', fontsize=30)
+ax.set_ylabel('Time (s)', fontsize=40)
 
 plt.tight_layout()
 
