@@ -606,13 +606,17 @@ class MEAO:
             self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs))
             
             # update migrating containers
-            idsToDelete = [
-                container_id 
-                for container_id, op_id in self.migratingContainers.items() 
-                if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
-            ]
-            for container_id in idsToDelete:
-                self.migratingContainers.pop(container_id)
+            try:
+                idsToDelete = [
+                    container_id 
+                    for container_id, op_id in self.migratingContainers.items() 
+                    if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
+                ]
+                for container_id in idsToDelete:
+                    self.migratingContainers.pop(container_id)
+            except Exception as e:
+                print("INFO: Exception while updating migrating containers: ", e)
+                continue
 
             print("Container Info: " + json.dumps(self.containerInfo, indent=2))
             print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
