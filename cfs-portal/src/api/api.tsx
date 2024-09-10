@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: 'http://10.255.32.88:8080/oss/v1'
+    baseURL: 'http://10.255.32.132:30880/oss/v1'
 });
 
 // App Package

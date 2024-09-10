@@ -10,10 +10,10 @@ spec:
     - name: "8080"
       port: 8080
       targetPort: 8080
-      nodePort: 8080
+      nodePort: 30880
     - name: "8001"
       port: 8001
       targetPort: 8001
-      nodePort: 8001
+      nodePort: 30801
   selector:
     app: oss
