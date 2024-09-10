@@ -10,7 +10,7 @@ service:
   port: 5000
 
 kafka:
-  bootstrapServers: "10.255.32.88:14000"
+  bootstrapServers: "10.255.32.132:31402"
   topic: "ue-lat"
 
 nodeSelector:

@@ -19,7 +19,7 @@ spec:
       containers:
         - env:
             - name: KAFKA_SERVER
-              value: 10.255.32.88:14000
+              value: 10.255.32.132:31402
             - name: KUBECTL_COMMAND
               value: /usr/local/bin/kubectl
             - name: KUBECTL_CONFIG_PATH
@@ -27,9 +27,9 @@ spec:
             - name: METRICS_COLLECTOR_KAFKA_TOPIC
               value: k8s-cluster
             - name: OSM_HOSTNAME
-              value: 10.255.32.88:9999
+              value: nbi.10.255.32.132.nip.io
             - name: OSS_HOSTNAME
-              value: http://10.255.32.88:8080/oss/v1
+              value: http://10.255.32.132:30880/oss/v1
             - name: PYTHONUNBUFFERED
               value: "1"
             - name: UE_LATENCY_KAFKA_TOPIC

@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify, render_template_string, redirect
 from confluent_kafka import Producer
 
 # Kafka configuration
-conf = {'bootstrap.servers': "10.255.32.88:14000"}
+conf = {'bootstrap.servers': "10.255.32.132:31402"}
 producer = Producer(conf)
 topic = "ue-lat"
 

@@ -2,7 +2,7 @@ import subprocess
 import time
 import logging
 
-namespace = "17d7aed1-869a-4ced-b492-c3a8b0a433c2"
+namespace = "10a613e3-46b4-433a-b836-eb15df1267cb"
 command = "stress-ng --vm 1 --vm-bytes 4G"
 logfile = "log.txt"  # Change to your desired log file path
 stress_duration = 15  # Duration to run the stress-ng command
