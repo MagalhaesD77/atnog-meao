@@ -25,10 +25,10 @@ class ContainerInfoThread(plugins.SimplePlugin):
 def get_containers_info():
     while True:
         try:
-            response = requests.get("http://10.255.32.132:8000/containerInfo")
+            response = requests.get("http://meao-monitoring:8000/containerInfo")
             for container in response.json()["ContainerInfo"]:
                 node_specs = requests.get(
-                    "http://10.255.32.132:8000/nodeSpecs/" + container["node"]
+                    "http://meao-monitoring:8000/nodeSpecs/" + container["node"]
                 ).json()
                 containers[container["id"]] = {
                     "ns": container["ns_id"],
