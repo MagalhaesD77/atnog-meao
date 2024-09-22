@@ -19,7 +19,7 @@ spec:
       containers:
         - env:
             - name: KAFKA_BOOTSTRAP_SERVERS
-              value: 10.255.32.132:31402
+              value: 10.255.32.132:31999
             - name: MONGO_PASSWORD
               value: pass
             - name: MONGO_USER

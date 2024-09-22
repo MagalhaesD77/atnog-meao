@@ -1,4 +1,4 @@
-from ...threads.container_info_thread import containers
+from ...threads.mec_apps_thread import containers
 from ...threads.websocket_service_thread import metrics_queue
 
 
