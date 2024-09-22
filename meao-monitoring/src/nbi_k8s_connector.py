@@ -23,16 +23,13 @@ class NBIConnector:
         path to store the kube config to be used by the kubectl command to interact with the cluster
     nbi_client : osmclient.Client
         instance of OSM Client to be used to communicate with OSM's NBI
-    oss_hostname: str
-        IP address to be used to communicate with the OSS
     """
 
-    def __init__(self, osm_hostname, oss_hostname, kubectl_command, kubectl_config_path) -> None:
+    def __init__(self, osm_hostname, kubectl_command, kubectl_config_path) -> None:
         self.osm_hostname = osm_hostname
         self.kubectl_command = kubectl_command
         self.kubectl_config_path = kubectl_config_path
         self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
-        self.oss_hostname = oss_hostname
         kubectl_config = None
         while not kubectl_config:
             kubectl_config = self.getKubeConfig()
@@ -163,7 +160,7 @@ class NBIConnector:
             "mobility-migration-factor": mobility_migration_factor,
         }
 
-    def getContainerInfo(self, nodeSpecs):
+    def getContainerInfo(self, nodeSpecs, mec_apps=None):
         """
         Interacts with both OSM's NBI and the Kubernetes API to get information relating to the every OSM-deployed container
 
@@ -171,14 +168,14 @@ class NBIConnector:
         ----------
         nodeSpecs : dict
             dictionary storing information relating to the cluster's nodes
+        mec_apps : dict
+            MEC Application information received from the OSS
         """
         # this resets the value of the self._apiResource variable, avoiding a bug in the osmclient
         self.callNBI(self.nbi_client.__init__, host=self.osm_hostname, port=9999,sol005=True)
 
         # get all ns instances
         ns_instances = self.callNBI(self.nbi_client.ns.list)
-        # get all mec apps
-        mec_apps = self.callOSS("/mec-appis")
         
         containerInfo = {}
 
@@ -191,12 +188,6 @@ class NBIConnector:
         elif 'code' in ns_instances[0].keys():
             print('ERROR: Error calling OSM ns_instances endpoint')
             return containerInfo
-        
-        if "error" in mec_apps:
-            print('ERROR: Error calling OSS mec-appis endpoint')
-            return containerInfo
-        else:
-            mec_apps = json.loads(mec_apps)
 
         # iterate through each ns instance
         for ns_instance in ns_instances:
@@ -255,14 +246,15 @@ class NBIConnector:
                     # find the corresponding mec app and process its migration policy
                     nodeName = pod["spec"]["nodeName"]
                     migration_policy = None
-                    for mec_app in mec_apps:
-                        if (mec_app["appi_id"] == ns_id
-                            and mec_app["vnf_id"] == vnf_id
-                            and mec_app["kdu_id"] == kdu_instance
-                            and nodeName in nodeSpecs
-                        ):
-                            migration_policy = self.processMigrationPolicy(mec_app["migration_policy"], nodeSpecs[nodeName])
-                            break
+                    if mec_apps:
+                        for mec_app in mec_apps:
+                            if (mec_app["appi_id"] == ns_id
+                                and mec_app["vnf_id"] == vnf_id
+                                and mec_app["kdu_id"] == kdu_instance
+                                and nodeName in nodeSpecs
+                            ):
+                                migration_policy = self.processMigrationPolicy(mec_app["migration_policy"], nodeSpecs[nodeName])
+                                break
 
                     # iterate through each container
                     containers = pod["status"]["containerStatuses"]
@@ -349,23 +341,3 @@ class NBIConnector:
         except Exception as e:
             print(f"An error occurred: {e}")
             return None
-        
-    def callOSS(self, endpoint):
-        """
-        Function to make HTTP GET requests to the OSS endpoint.
-
-        Parameters
-        ----------
-        endpoint : str
-            the specific API endpoint to be appended to the base OSS hostname for the HTTP request.
-        """
-        endpoint = self.oss_hostname + endpoint
-
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
-                r = requests.get(endpoint)
-        except Exception as e:
-            return {'error': True, 'data': str(e)}
-
-        return r.text

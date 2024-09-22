@@ -4,7 +4,7 @@ import time
 import threading
 import time
 import dateutil.parser as dp
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, Producer, KafkaError
 
 class MEAO:
     """
@@ -16,14 +16,18 @@ class MEAO:
     ----------
     nbi_k8s_connector : NBIConnector
         instance of NBIConnector which simplifies interactions with OSM's NBI and the Kubernetes API
-    update_container_ids_freq : int
-        length of time (in seconds) that the update_container_ids must wait between each update
     metrics_collector_kafka_topic : str
         kafka topic for the MEAO to subscribe to consume metrics information relating to the containers
     ue_latency_kafka_topic : str
         kafka topic for the MEAO to subscribe to consume latency information relating to the containers
+    meao_oss_kafka_topic : str
+        kafka topic for the MEAO to communicate with the OSS
+    send_container_info_freq : int
+        length of time (in seconds) that the send_container_info thread must wait between each message it sends to the OSS
     kafka_consumer_conf: str
         kafka consumer configuration (IP, offset, etc.)
+    kafka_producer_conf: str
+        kafka producer configuration (IP, etc.)
     migratingContainers: dict
         dictionary to monitor which containers are currently being migrated,
         mapping the container's ID to the corresponding OSM migration operation ID
@@ -73,12 +77,14 @@ class MEAO:
                         used for determining migration based on latency information
     """
 
-    def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_latency_kafka_topic, kafka_consumer_conf) -> None:
+    def __init__(self, nbi_k8s_connector, metrics_collector_kafka_topic, ue_latency_kafka_topic, meao_oss_kafka_topic, send_container_info_freq, kafka_consumer_conf, kafka_producer_conf) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
-        self.update_container_ids_freq = update_container_ids_freq
         self.metrics_collector_kafka_topic = metrics_collector_kafka_topic
         self.ue_latency_kafka_topic = ue_latency_kafka_topic
+        self.meao_oss_kafka_topic = meao_oss_kafka_topic
+        self.send_container_info_freq = send_container_info_freq
         self.kafka_consumer_conf = kafka_consumer_conf
+        self.kafka_producer_conf = kafka_producer_conf
         self.migratingContainers = {}
         self.cpu_history = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
@@ -102,7 +108,10 @@ class MEAO:
                 if necessary, a migration operation will be scheduled
 
             update_container_ids:
-                thread for updating the nodeSpecs, containerInfo and migrationContainers dictionary
+                thread for updating the nodeSpecs, containerInfo and migrationContainers dictionaries
+
+            send_container_info:
+                thread for sending the nodeSpecs and containerInfo dictionaries to the OSS
 
             watch_kubectl_thread:
                 thread for testing purposes
@@ -112,13 +121,15 @@ class MEAO:
         read_metrics_collector = threading.Thread(target=self.read_metrics_collector)
         read_ue_latency = threading.Thread(target=self.read_ue_latency)
         update_thread = threading.Thread(target=self.update_container_ids)
-        watch_kubectl_thread = threading.Thread(target=self.watch_kubectl)
+        send_container_info_thread = threading.Thread(target=self.send_container_info)
+        #watch_kubectl_thread = threading.Thread(target=self.watch_kubectl)
 
         # Start threads
         read_metrics_collector.start()
         read_ue_latency.start()
         update_thread.start()
-        watch_kubectl_thread.start()
+        send_container_info_thread.start()
+        #watch_kubectl_thread.start()
 
     def get_node_specs(self, hostname=None):
         """
@@ -448,6 +459,8 @@ class MEAO:
         """
         Simple function to ensures the old dictionary is updated without altering the existing contents unnecessarily.
 
+        Also verifies if there is an update to the migration policy of any container
+
         Parameters
         ----------
         oldDict : dict
@@ -455,13 +468,21 @@ class MEAO:
         values: dict
             dictionary with new content
         """
-        keys_to_keep_nodeSpecs = set(oldDict.keys()).intersection(updatedDict.keys())
-        keys_to_remove_nodeSpecs = set(oldDict.keys()) - keys_to_keep_nodeSpecs
-        for key in keys_to_remove_nodeSpecs:
+        keys_to_keep = set(oldDict.keys()).intersection(updatedDict.keys())
+        keys_to_remove = set(oldDict.keys()) - keys_to_keep
+        for key in keys_to_remove:
             oldDict.pop(key)
+
+        for key in keys_to_keep:
+            if (
+                "migration_policy" in oldDict[key]
+                and not oldDict[key]["migration_policy"]
+                and updatedDict[key]["migration_policy"]
+            ):
+                oldDict[key]["migration_policy"] = updatedDict[key]["migration_policy"]
         
-        keys_to_add_nodeSpecs = set(updatedDict.keys()) - set(oldDict.keys())
-        for key in keys_to_add_nodeSpecs:
+        keys_to_add = set(updatedDict.keys()) - set(oldDict.keys())
+        for key in keys_to_add:
             oldDict[key] = updatedDict[key]
 
         return oldDict
@@ -585,41 +606,98 @@ class MEAO:
         !!! THREAD !!! 
         
         update_container_ids:
-            thread for updating the nodeSpecs, containerInfo and migrationContainers dictionary
+            thread for collecting and processing MEC Application information received from the OSS
+            updates the nodeSpecs, containerInfo and migrationContainers dictionary
         """
+        # create kafka consumer
+        consumer = Consumer(self.kafka_consumer_conf)
+
+        # subscribe to the topic
+        consumer.subscribe([self.meao_oss_kafka_topic])
+
+        try:
+            print("Listening to Kafka on topic {}....".format(self.meao_oss_kafka_topic))
+            while True:
+                
+                # poll for messages
+                message = consumer.poll(1.0)
+
+                if message is None:
+                    continue
+                if message.error():
+                    if message.error().code() == KafkaError._PARTITION_EOF:
+                        # end of partition
+                        continue
+                    else:
+                        # error
+                        print("Error: {}".format(message.error()))
+                        break
+
+                # process the message
+                mec_apps = json.loads(message.value().decode('utf-8'))
+                print("mec_apps: ", mec_apps)
+                if "mec_apps" in mec_apps:
+                    mec_apps = mec_apps["mec_apps"]
+                    try:
+                        # update node specs
+                        newNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+                        for nodeName in self.nodeSpecs.keys():
+                            if (
+                                nodeName in newNodeSpecs
+                                and "cadvisor" in self.nodeSpecs[nodeName].keys() 
+                                and "cadvisor" in newNodeSpecs[nodeName].keys() 
+                                and self.nodeSpecs[nodeName]["cadvisor"] != newNodeSpecs[nodeName]["cadvisor"]
+                            ):
+                                self.nodeSpecs[nodeName]["cadvisor"] = newNodeSpecs[nodeName]["cadvisor"]
+                        self.nodeSpecs = self.updateDict(self.nodeSpecs, newNodeSpecs)
+
+                        # update container info
+                        self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs, mec_apps))
+                        
+                        # update migrating containers
+                        try:
+                            idsToDelete = [
+                                container_id 
+                                for container_id, op_id in self.migratingContainers.items() 
+                                if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
+                            ]
+                            for container_id in idsToDelete:
+                                self.migratingContainers.pop(container_id)
+                        except Exception as e:
+                            print("INFO: Exception while updating migrating containers: ", e)
+                            continue
+
+                        print("Container Info: " + json.dumps(self.containerInfo, indent=2))
+                        print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
+
+                    except RuntimeError as e:
+                        print("INFO: Exception while processing kafka messages: ", e)
+
+        except KeyboardInterrupt:
+            # Stop consumer on keyboard interrupt
+            consumer.close()
+    
+    def send_container_info(self):
+        """
+        !!! THREAD !!! 
+        
+        send_container_info:
+            thread for sending the nodeSpecs and containerInfo dictionaries to the OSS
+        """
+        producer = Producer(self.kafka_producer_conf)
         while True:
-            time.sleep(self.update_container_ids_freq)
-
-            # update node specs
-            newNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
-            for nodeName in self.nodeSpecs.keys():
-                if (
-                    nodeName in newNodeSpecs
-                    and "cadvisor" in self.nodeSpecs[nodeName].keys() 
-                    and "cadvisor" in newNodeSpecs[nodeName].keys() 
-                    and self.nodeSpecs[nodeName]["cadvisor"] != newNodeSpecs[nodeName]["cadvisor"]
-                ):
-                    self.nodeSpecs[nodeName]["cadvisor"] = newNodeSpecs[nodeName]["cadvisor"]
-            self.nodeSpecs = self.updateDict(self.nodeSpecs, newNodeSpecs)
-
-            # update container info
-            self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs))
-            
-            # update migrating containers
             try:
-                idsToDelete = [
-                    container_id 
-                    for container_id, op_id in self.migratingContainers.items() 
-                    if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
-                ]
-                for container_id in idsToDelete:
-                    self.migratingContainers.pop(container_id)
+                info = {
+                    "containerInfo": self.containerInfo,
+                    "nodeSpecs": self.nodeSpecs,
+                }
+                message = json.dumps(info)
+                producer.produce(self.meao_oss_kafka_topic, key='info', value=message)
+                producer.poll(0)
+                time.sleep(self.send_container_info_freq)
             except Exception as e:
-                print("INFO: Exception while updating migrating containers: ", e)
+                print("INFO: Exception while sending container info: ", e)
                 continue
-
-            print("Container Info: " + json.dumps(self.containerInfo, indent=2))
-            print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
 
     def watch_kubectl(self):
         """

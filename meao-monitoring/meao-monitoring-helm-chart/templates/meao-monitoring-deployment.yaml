@@ -19,7 +19,7 @@ spec:
       containers:
         - env:
             - name: KAFKA_SERVER
-              value: 10.255.32.132:31402
+              value: 10.255.32.132:31999
             - name: KUBECTL_COMMAND
               value: /usr/local/bin/kubectl
             - name: KUBECTL_CONFIG_PATH
@@ -28,13 +28,13 @@ spec:
               value: k8s-cluster
             - name: OSM_HOSTNAME
               value: nbi.10.255.32.132.nip.io
-            - name: OSS_HOSTNAME
-              value: http://10.255.32.132:30880/oss/v1
+            - name: MEAO_OSS_KAFKA_TOPIC
+              value: meao-oss
             - name: PYTHONUNBUFFERED
               value: "1"
             - name: UE_LATENCY_KAFKA_TOPIC
               value: ue-lat
-            - name: UPDATE_CONTAINER_IDS_FREQ
+            - name: SEND_CONTAINER_INFO_FREQ
               value: "5"
           image: localhost:5000/meao-monitoring
           imagePullPolicy: Always
