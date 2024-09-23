@@ -12,6 +12,7 @@ def callback(data):
                 "appi_id": appi_id,
                 "mem_load": get_mem_load(data, node_specs),
                 "cpu_load": get_cpu_load(data, node_specs, container_id),
+                "warning" : containers[container_id]["warning"]["msg"],
             }
 
             metrics_queue.put(metrics)
