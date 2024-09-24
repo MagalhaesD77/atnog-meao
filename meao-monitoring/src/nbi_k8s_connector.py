@@ -289,14 +289,16 @@ class NBIConnector:
         print("NETWORK SERVICE ID: {}".format(container["ns_id"]))
         try:
             return self.callNBI(
-                self.nbi_client.ns.migrate_k8s,
+                self.nbi_client.ns.migrate,
                 container["ns_id"],
                 migrate_dict = {
                     "vnfInstanceId": container["vnf_id"],
-                    "migrateToHost": node,
-                    "kdu": {
-                        "kduId": container["kdu_id"],
-                        "kduCountIndex": 0,
+                    "targetHostK8sLabels": {
+                        "kubernetes.io/hostname": node,
+                    },
+                    "vdu": {
+                        "vduId": container["kdu_id"],
+                        "vduCountIndex": 0,
                     }
                 })
         except Exception as e:
@@ -332,12 +334,14 @@ class NBIConnector:
         **kwargs : dict
             keyword arguments that will be passed to the `func` when it is called.
         """
-        try:
-            return func(*args, **kwargs)
-        except (OsmHttpException) as e:
-            self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
-            print(f"An error occurred: {e}")
-            return func(*args, **kwargs)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None
+        tries = 0
+        while tries < 5:
+            try:
+                return func(*args, **kwargs)
+            except (OsmHttpException) as e:
+                print(f"An error occurred: {e}")
+                self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
+                tries += 1
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                return None
