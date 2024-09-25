@@ -347,7 +347,7 @@ const InstanceGrid = ({ minimalConfig = false, instanceCount }: InstanceGridProp
             renderCell: (params: any) => {
                 const warning = metrics && metrics[params.row.id as string]?.warning;
         
-                if (warning !== null) {
+                if (warning !== undefined && warning !== null) {
                     return (
                         <Tooltip title={warning}>
                             <Box display="flex" alignItems="center" justifyContent="center">
