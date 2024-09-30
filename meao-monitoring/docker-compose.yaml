@@ -3,14 +3,13 @@ services:
     build: .
     environment:
       - PYTHONUNBUFFERED=1
-      - OSM_HOSTNAME=10.255.32.88:9999
-      - OSS_HOSTNAME=http://oss:8080/oss/v1
+      - OSM_HOSTNAME=nbi.10.255.32.132.nip.io
+      - MEAO_OSS_KAFKA_TOPIC=meao-oss
       - METRICS_COLLECTOR_KAFKA_TOPIC=k8s-cluster
       - UE_LATENCY_KAFKA_TOPIC=ue-lat
-      - KAFKA_SERVER=10.255.32.88:14000
+      - KAFKA_SERVER=10.255.32.132:31999
       - KUBECTL_COMMAND=/usr/local/bin/kubectl
       - KUBECTL_CONFIG_PATH=kube_config
-      - UPDATE_CONTAINER_IDS_FREQ=5
     networks:
       - temp-network
 networks:

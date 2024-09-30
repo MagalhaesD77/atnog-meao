@@ -34,21 +34,24 @@ def main():
     global meao
     nbi_k8s_connector = NBIConnector(
         os.environ.get("OSM_HOSTNAME"),
-        os.environ.get("OSS_HOSTNAME"),
         os.environ.get("KUBECTL_COMMAND"),
         os.environ.get("KUBECTL_CONFIG_PATH")
     )
 
     meao = MEAO(
         nbi_k8s_connector,
-        int(os.environ.get("UPDATE_CONTAINER_IDS_FREQ")),
         os.environ.get("METRICS_COLLECTOR_KAFKA_TOPIC"),
         os.environ.get("UE_LATENCY_KAFKA_TOPIC"),
+        os.environ.get("MEAO_OSS_KAFKA_TOPIC"),
+        int(os.environ.get("SEND_CONTAINER_INFO_FREQ")),
         {
             'bootstrap.servers': os.environ.get("KAFKA_SERVER"),
             'group.id': 'monitoring',
             'auto.offset.reset': 'latest'
         },
+        {
+            'bootstrap.servers': os.environ.get("KAFKA_SERVER"),
+        }
     )
 
     meao.start()

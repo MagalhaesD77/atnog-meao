@@ -4,7 +4,7 @@ import time
 import threading
 import time
 import dateutil.parser as dp
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, Producer, KafkaError
 
 class MEAO:
     """
@@ -16,14 +16,18 @@ class MEAO:
     ----------
     nbi_k8s_connector : NBIConnector
         instance of NBIConnector which simplifies interactions with OSM's NBI and the Kubernetes API
-    update_container_ids_freq : int
-        length of time (in seconds) that the update_container_ids must wait between each update
     metrics_collector_kafka_topic : str
         kafka topic for the MEAO to subscribe to consume metrics information relating to the containers
     ue_latency_kafka_topic : str
         kafka topic for the MEAO to subscribe to consume latency information relating to the containers
+    meao_oss_kafka_topic : str
+        kafka topic for the MEAO to communicate with the OSS
+    send_container_info_freq : int
+        length of time (in seconds) that the send_container_info thread must wait between each message it sends to the OSS
     kafka_consumer_conf: str
         kafka consumer configuration (IP, offset, etc.)
+    kafka_producer_conf: str
+        kafka producer configuration (IP, etc.)
     migratingContainers: dict
         dictionary to monitor which containers are currently being migrated,
         mapping the container's ID to the corresponding OSM migration operation ID
@@ -73,18 +77,21 @@ class MEAO:
                         used for determining migration based on latency information
     """
 
-    def __init__(self, nbi_k8s_connector, update_container_ids_freq, metrics_collector_kafka_topic, ue_latency_kafka_topic, kafka_consumer_conf) -> None:
+    def __init__(self, nbi_k8s_connector, metrics_collector_kafka_topic, ue_latency_kafka_topic, meao_oss_kafka_topic, send_container_info_freq, kafka_consumer_conf, kafka_producer_conf) -> None:
         self.nbi_k8s_connector = nbi_k8s_connector
-        self.update_container_ids_freq = update_container_ids_freq
         self.metrics_collector_kafka_topic = metrics_collector_kafka_topic
         self.ue_latency_kafka_topic = ue_latency_kafka_topic
+        self.meao_oss_kafka_topic = meao_oss_kafka_topic
+        self.send_container_info_freq = send_container_info_freq
         self.kafka_consumer_conf = kafka_consumer_conf
+        self.kafka_producer_conf = kafka_producer_conf
         self.migratingContainers = {}
         self.cpu_history = {}
         self.nodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
         print("Node Specs: " + str(self.nodeSpecs))
         self.containerInfo = self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs)
         print("Container Info: " + str(self.containerInfo))
+        self.producer = Producer(self.kafka_producer_conf)
         self.log = {}
         with open("results.csv", "w") as log_file:
             log_file.write("Metrics Collection,Metrics Reception,Migration Decision,Target Pod Initialization,Target Pod Ready,Source Pod Termination,Migration Completion in OSM\n")
@@ -102,7 +109,10 @@ class MEAO:
                 if necessary, a migration operation will be scheduled
 
             update_container_ids:
-                thread for updating the nodeSpecs, containerInfo and migrationContainers dictionary
+                thread for updating the nodeSpecs, containerInfo and migrationContainers dictionaries
+
+            send_container_info:
+                thread for sending the nodeSpecs and containerInfo dictionaries to the OSS
 
             watch_kubectl_thread:
                 thread for testing purposes
@@ -112,13 +122,15 @@ class MEAO:
         read_metrics_collector = threading.Thread(target=self.read_metrics_collector)
         read_ue_latency = threading.Thread(target=self.read_ue_latency)
         update_thread = threading.Thread(target=self.update_container_ids)
-        watch_kubectl_thread = threading.Thread(target=self.watch_kubectl)
+        send_container_info_thread = threading.Thread(target=self.send_container_info)
+        #watch_kubectl_thread = threading.Thread(target=self.watch_kubectl)
 
         # Start threads
         read_metrics_collector.start()
         read_ue_latency.start()
         update_thread.start()
-        watch_kubectl_thread.start()
+        send_container_info_thread.start()
+        #watch_kubectl_thread.start()
 
     def get_node_specs(self, hostname=None):
         """
@@ -145,20 +157,26 @@ class MEAO:
 
     def min_usage_node(self):
         """
-        Returns the name and usage of the node with the least resource usage (cpu and memory) 
+        Returns information regarding the node with the least resource usage (cpu and memory) 
         """
         min_usage_node = None
-        min_usage = 0
+        min_cpu = min_mem = min_usage = 0
         for node, nodeInfo in self.nodeSpecs.items():
             if "cpuLoad" not in nodeInfo or "memLoad" not in nodeInfo:
                 continue
             usage = nodeInfo["cpuLoad"] + nodeInfo["memLoad"]
             if not min_usage_node or usage < min_usage:
                 min_usage_node = node
+                min_cpu = nodeInfo["cpuLoad"]
+                min_mem = nodeInfo["memLoad"]
                 min_usage = usage
-        return min_usage_node, min_usage
+        return {
+            "min_usage_node": min_usage_node, 
+            "min_cpu": min_cpu,
+            "min_mem": min_mem,
+        }
 
-    def min_lat_MEH(self, ue_lats):
+    def min_lat_MEH(self, ue_lats, exclude_nodes):
         """
         Returns the name and latency of the node with the least latency
 
@@ -166,11 +184,13 @@ class MEAO:
         ----------
         ue_lats : dict
             latency information
+        exclude_nodes: list
+            list containing the hostnames of nodes to not include in the search
         """
         min_lat_meh = None
         min_lat = 0
         for meh, meh_lat in ue_lats.items():
-            if not min_lat_meh or meh_lat < min_lat:
+            if (not min_lat_meh or meh_lat < min_lat) and meh not in exclude_nodes:
                 min_lat_meh = meh
                 min_lat = meh_lat
         return min_lat_meh, min_lat
@@ -186,7 +206,12 @@ class MEAO:
             If the current container cpu/memLoad on the node is larger than cpu/mem_load_thresh + cpu/mem_surge_capacity:
                 - the container must be migrated since the Service-Level Agreement has been violated
 
-        If the conditions for migration are verified, the function returns the name of the node with the least resource usage, else it returns None
+        If none of these conditions are verified, the function returns None
+
+        If the conditions for migration ARE verified, the function will then evaluate if the target node can support running the container,
+        according to the application's Service-Level Agreement. If the target node can support running the container, 
+        the function returns the name of the node with the least resource usage. 
+        If not, it sends a Kafka message to notify the OSS of this occurrence and returns None
 
         Parameters
         ----------
@@ -199,7 +224,6 @@ class MEAO:
         memLoad = container["memLoad"]
         node_cpuLoad = self.nodeSpecs[container["node"]]["cpuLoad"]
         node_memLoad = self.nodeSpecs[container["node"]]["memLoad"]
-        node_usage = node_cpuLoad + node_memLoad
 
         min_cpu_resources = container["migration_policy"]["cpu_load_thresh"]
         extra_cpu_resources = container["migration_policy"]["cpu_surge_capacity"]
@@ -215,17 +239,35 @@ class MEAO:
             or (100-node_cpuLoad) < min(extra_cpu_resources, max_cpu_resources-cpuLoad)
             or (100-node_memLoad) < min(extra_mem_resources, max_mem_resources-memLoad)
         ):
-            min_usage_node, min_usage = self.min_usage_node()
-            if min_usage_node != container["node"] and min_usage < node_usage and cName not in self.migratingContainers:
-                if cName in self.log.keys():
-                    self.log[cName] += str(time.time()) + ","
-                return min_usage_node
+            min_usage_info = self.min_usage_node()
+            min_usage_node = min_usage_info["min_usage_node"]
+            min_cpu = min_usage_info["min_cpu"]
+            min_mem = min_usage_info["min_mem"]
+            if (min_usage_node != container["node"]
+                and (100-min_cpu) > max_cpu_resources
+                and (100-min_mem) > max_mem_resources
+            ):
+                if cName not in self.migratingContainers:
+                    if cName in self.log.keys():
+                        self.log[cName] += str(time.time()) + ","
+                    return min_usage_node
+            else:
+                self.migratingContainers[cName] = "FAILED"
+                info = {
+                    "warning": {
+                        "containerName": cName,
+                        "msg": "MIGRATION FAILED: No suitable target found"
+                    }
+                }
+                message = json.dumps(info)
+                self.producer.produce(self.meao_oss_kafka_topic, key='info', value=message)
+                return None
         
         if cName in self.log and cName not in self.migratingContainers:
             self.log.pop(cName)
         return None
         
-    def latencyMigrationAlgorithm(self, container):
+    def latencyMigrationAlgorithm(self, container, cName):
         """
         Processes latency information and determines whether a migration operation must be scheduled
 
@@ -234,23 +276,58 @@ class MEAO:
             If a node is found where its latency is less than the current node's latency multiplied by the mobility migration factor:
                 - the container must be migrated since the new node offers better conditions
 
-        If the conditions for migration are verified, the function returns the name of the node with the least latency, else it returns None
+        If this condition is not verified, the function returns None
+
+        If the conditions for migration ARE verified, the function will then evaluate if the target node can support running the container,
+        according to the application's Service-Level Agreement. If the target node can not support running the container, 
+        the function will keep searching for a suitable node and eventually return the name of the suitable node with the least latency. 
+        If no suitable node is found, it sends a Kafka message to notify the OSS of this occurrence and returns None
 
         Parameters
         ----------
         container : dict
             information relating to the container whose metrics are being processed, obtained from the containerInfo dictionary
+        cName : str
+            the container's ID
         """
         ue_lats = container["ue-lats"]
 
         current_meh = container["node"]
         current_meh_lat = ue_lats[current_meh]
 
-        min_lat_meh, min_lat = self.min_lat_MEH(ue_lats)
+        exclude_nodes = list()
+        while len(self.nodeSpecs.keys()) - len(exclude_nodes) > 1:
+            min_lat_meh, min_lat = self.min_lat_MEH(ue_lats, exclude_nodes)
 
-        if min_lat_meh != current_meh and min_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
-            return min_lat_meh
+            if min_lat_meh != current_meh and min_lat < container["migration_policy"]["mobility-migration-factor"]*current_meh_lat:
+                min_cpu_resources = container["migration_policy"]["cpu_load_thresh"]
+                extra_cpu_resources = container["migration_policy"]["cpu_surge_capacity"]
+                max_cpu_resources = min_cpu_resources + extra_cpu_resources
+
+                min_mem_resources = container["migration_policy"]["mem_load_thresh"]
+                extra_mem_resources = container["migration_policy"]["mem_surge_capacity"]
+                max_mem_resources = min_mem_resources + extra_mem_resources
+
+                cpuLoad = self.nodeSpecs[min_lat_meh]["cpuLoad"]
+                memLoad = self.nodeSpecs[min_lat_meh]["memLoad"]
+                if ((100-cpuLoad) > max_cpu_resources
+                    and (100-memLoad) > max_mem_resources
+                ):
+                    return min_lat_meh
+                else:
+                    exclude_nodes.append(min_lat_meh)
+            else:
+                return None
         
+        self.migratingContainers[cName] = "FAILED"
+        info = {
+            "warning": {
+                "containerName": cName,
+                "msg": "MIGRATION FAILED: No suitable target found"
+            }
+        }
+        message = json.dumps(info)
+        self.producer.produce(self.meao_oss_kafka_topic, key='info', value=message)
         return None
 
     def migrationAlgorithm(self, cName):
@@ -294,7 +371,7 @@ class MEAO:
         ):
             resourceTargetNode = self.resourceMigrationAlgorithm(container, cName)
         if container["migration_policy"]["mobility-migration-factor"] and "ue-lats" in container:
-            latencyTargetNode = self.latencyMigrationAlgorithm(container)
+            latencyTargetNode = self.latencyMigrationAlgorithm(container, cName)
 
         # if the conditions demand the migration of the container, determine the final migration target, else return None
         finalTargetNode = None
@@ -448,6 +525,8 @@ class MEAO:
         """
         Simple function to ensures the old dictionary is updated without altering the existing contents unnecessarily.
 
+        Also verifies if there is an update to the migration policy of any container
+
         Parameters
         ----------
         oldDict : dict
@@ -455,13 +534,21 @@ class MEAO:
         values: dict
             dictionary with new content
         """
-        keys_to_keep_nodeSpecs = set(oldDict.keys()).intersection(updatedDict.keys())
-        keys_to_remove_nodeSpecs = set(oldDict.keys()) - keys_to_keep_nodeSpecs
-        for key in keys_to_remove_nodeSpecs:
+        keys_to_keep = set(oldDict.keys()).intersection(updatedDict.keys())
+        keys_to_remove = set(oldDict.keys()) - keys_to_keep
+        for key in keys_to_remove:
             oldDict.pop(key)
+
+        for key in keys_to_keep:
+            if (
+                "migration_policy" in oldDict[key]
+                and not oldDict[key]["migration_policy"]
+                and updatedDict[key]["migration_policy"]
+            ):
+                oldDict[key]["migration_policy"] = updatedDict[key]["migration_policy"]
         
-        keys_to_add_nodeSpecs = set(updatedDict.keys()) - set(oldDict.keys())
-        for key in keys_to_add_nodeSpecs:
+        keys_to_add = set(updatedDict.keys()) - set(oldDict.keys())
+        for key in keys_to_add:
             oldDict[key] = updatedDict[key]
 
         return oldDict
@@ -585,41 +672,96 @@ class MEAO:
         !!! THREAD !!! 
         
         update_container_ids:
-            thread for updating the nodeSpecs, containerInfo and migrationContainers dictionary
+            thread for collecting and processing MEC Application information received from the OSS
+            updates the nodeSpecs, containerInfo and migrationContainers dictionary
+        """
+        # create kafka consumer
+        consumer = Consumer(self.kafka_consumer_conf)
+
+        # subscribe to the topic
+        consumer.subscribe([self.meao_oss_kafka_topic])
+
+        try:
+            print("Listening to Kafka on topic {}....".format(self.meao_oss_kafka_topic))
+            while True:
+                
+                # poll for messages
+                message = consumer.poll(1.0)
+
+                if message is None:
+                    continue
+                if message.error():
+                    if message.error().code() == KafkaError._PARTITION_EOF:
+                        # end of partition
+                        continue
+                    else:
+                        # error
+                        print("Error: {}".format(message.error()))
+                        break
+
+                # process the message
+                mec_apps = json.loads(message.value().decode('utf-8'))
+                if "mec_apps" in mec_apps:
+                    mec_apps = mec_apps["mec_apps"]
+                    try:
+                        # update node specs
+                        newNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
+                        for nodeName in self.nodeSpecs.keys():
+                            if (
+                                nodeName in newNodeSpecs
+                                and "cadvisor" in self.nodeSpecs[nodeName].keys() 
+                                and "cadvisor" in newNodeSpecs[nodeName].keys() 
+                                and self.nodeSpecs[nodeName]["cadvisor"] != newNodeSpecs[nodeName]["cadvisor"]
+                            ):
+                                self.nodeSpecs[nodeName]["cadvisor"] = newNodeSpecs[nodeName]["cadvisor"]
+                        self.nodeSpecs = self.updateDict(self.nodeSpecs, newNodeSpecs)
+
+                        # update container info
+                        self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs, mec_apps))
+                        
+                        # update migrating containers
+                        try:
+                            idsToDelete = [
+                                container_id 
+                                for container_id, op_id in self.migratingContainers.items() 
+                                if op_id == "FAILED" or (op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING")
+                            ]
+                            for container_id in idsToDelete:
+                                self.migratingContainers.pop(container_id)
+                        except Exception as e:
+                            print("INFO: Exception while updating migrating containers: ", e)
+                            continue
+
+                        print("Container Info: " + json.dumps(self.containerInfo, indent=2))
+                        print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
+
+                    except RuntimeError as e:
+                        print("INFO: Exception while processing kafka messages: ", e)
+
+        except KeyboardInterrupt:
+            # Stop consumer on keyboard interrupt
+            consumer.close()
+    
+    def send_container_info(self):
+        """
+        !!! THREAD !!! 
+        
+        send_container_info:
+            thread for sending the nodeSpecs and containerInfo dictionaries to the OSS
         """
         while True:
-            time.sleep(self.update_container_ids_freq)
-
-            # update node specs
-            newNodeSpecs = self.nbi_k8s_connector.getNodeSpecs()
-            for nodeName in self.nodeSpecs.keys():
-                if (
-                    nodeName in newNodeSpecs
-                    and "cadvisor" in self.nodeSpecs[nodeName].keys() 
-                    and "cadvisor" in newNodeSpecs[nodeName].keys() 
-                    and self.nodeSpecs[nodeName]["cadvisor"] != newNodeSpecs[nodeName]["cadvisor"]
-                ):
-                    self.nodeSpecs[nodeName]["cadvisor"] = newNodeSpecs[nodeName]["cadvisor"]
-            self.nodeSpecs = self.updateDict(self.nodeSpecs, newNodeSpecs)
-
-            # update container info
-            self.containerInfo = self.updateDict(self.containerInfo, self.nbi_k8s_connector.getContainerInfo(self.nodeSpecs))
-            
-            # update migrating containers
             try:
-                idsToDelete = [
-                    container_id 
-                    for container_id, op_id in self.migratingContainers.items() 
-                    if op_id != "MIGRATING" and self.nbi_k8s_connector.getOperationState(op_id) != "PROCESSING"
-                ]
-                for container_id in idsToDelete:
-                    self.migratingContainers.pop(container_id)
+                info = {
+                    "containerInfo": self.containerInfo,
+                    "nodeSpecs": self.nodeSpecs,
+                }
+                message = json.dumps(info)
+                self.producer.produce(self.meao_oss_kafka_topic, key='info', value=message)
+                self.producer.poll(0)
+                time.sleep(self.send_container_info_freq)
             except Exception as e:
-                print("INFO: Exception while updating migrating containers: ", e)
+                print("INFO: Exception while sending container info: ", e)
                 continue
-
-            print("Container Info: " + json.dumps(self.containerInfo, indent=2))
-            print("Node Specs: " + json.dumps(self.nodeSpecs, indent=2))
 
     def watch_kubectl(self):
         """

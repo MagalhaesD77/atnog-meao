@@ -10,6 +10,6 @@ spec:
     - name: "8000"
       port: 8000
       targetPort: 8000
-      nodePort: 8000
+      nodePort: 30800
   selector:
     app: meao-monitoring

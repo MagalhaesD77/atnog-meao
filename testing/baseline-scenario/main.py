@@ -101,7 +101,7 @@ def consume_metrics():
     global containerName
     global waiting_for_cAdvisor
     kafka_consumer_conf = {
-        'bootstrap.servers': '10.255.32.88:14000',
+        'bootstrap.servers': '10.255.32.132:31999',
         'group.id': 'monitoring',
         'auto.offset.reset': 'latest'
     }
