@@ -1,0 +1,45 @@
+
+
+meaoMonitoring:
+  enabled: true
+  name: meao-monitoring
+
+  deployment:
+    image: localhost:5000/meao-monitoring:latest
+    ports:
+      - containerPort: 8000
+        protocol: TCP
+    replicas: 1
+    imagePullPolicy: Always
+    restartPolicy: Always
+    env:
+      OSM_HOSTNAME: nbi.localhost.nip.io
+      KUBECTL_COMMAND: /usr/local/bin/kubectl
+      KUBECTL_CONFIG_PATH: kube_config
+      METRICS_COLLECTOR_KAFKA_TOPIC: k8s-cluster
+      MEAO_OSS_KAFKA_TOPIC: meao-oss
+      UE_LATENCY_KAFKA_TOPIC: ue-lat
+      SEND_CONTAINER_INFO_FREQ: "5"
+      KAFKA_PRODUCER_CONFIG:
+        bootstrap.servers: "kafka-controller-headless.osm.svc.cluster.local:9094"
+        security.protocol: "SASL_PLAINTEXT"
+        sasl.mechanism: "PLAIN"
+        sasl.username: "user1"
+        sasl.password: "admin"
+      KAFKA_CONSUMER_CONFIG:
+        bootstrap.servers: "kafka-controller-headless.osm.svc.cluster.local:9094"
+        group.id: "monitoring"
+        auto.offset.reset: "latest"
+        security.protocol: "SASL_PLAINTEXT"
+        sasl.mechanism: "PLAIN"
+        sasl.username: "user1"
+        sasl.password: "admin"
+
+  service:
+    type: NodePort
+    ports:
+      - name: "8000"
+        port: 8000
+        targetPort: 8000
+        nodePort: 30800
+    

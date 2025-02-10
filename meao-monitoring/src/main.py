@@ -2,6 +2,7 @@ import os
 from nbi_k8s_connector import NBIConnector
 from meao import MEAO
 from flask import Flask, jsonify
+import json
 
 app = Flask(__name__)
 meao = None
@@ -38,20 +39,16 @@ def main():
         os.environ.get("KUBECTL_CONFIG_PATH")
     )
 
+    kafka_producer_config = json.loads(os.environ.get("KAFKA_PRODUCER_CONFIG", '{"bootstrap.servers": "localhost:9092"}'))
+    kafka_consumer_config = json.loads(os.environ.get("KAFKA_CONSUMER_CONFIG", '{"bootstrap.servers": "localhost:9092", "group.id": "monitoring", "auto.offset.reset": "latest"}'))
     meao = MEAO(
         nbi_k8s_connector,
         os.environ.get("METRICS_COLLECTOR_KAFKA_TOPIC"),
         os.environ.get("UE_LATENCY_KAFKA_TOPIC"),
         os.environ.get("MEAO_OSS_KAFKA_TOPIC"),
         int(os.environ.get("SEND_CONTAINER_INFO_FREQ")),
-        {
-            'bootstrap.servers': os.environ.get("KAFKA_SERVER"),
-            'group.id': 'monitoring',
-            'auto.offset.reset': 'latest'
-        },
-        {
-            'bootstrap.servers': os.environ.get("KAFKA_SERVER"),
-        }
+        kafka_consumer_config,
+        kafka_producer_config
     )
 
     meao.start()

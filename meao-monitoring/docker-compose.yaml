@@ -7,12 +7,15 @@ services:
       - MEAO_OSS_KAFKA_TOPIC=meao-oss
       - METRICS_COLLECTOR_KAFKA_TOPIC=k8s-cluster
       - UE_LATENCY_KAFKA_TOPIC=ue-lat
-      - KAFKA_SERVER=10.255.32.132:31999
       - KUBECTL_COMMAND=/usr/local/bin/kubectl
       - KUBECTL_CONFIG_PATH=kube_config
+      - KAFKA_PRODUCER_CONFIG='{"bootstrap.servers":"localhost:9092","sasl.mechanism":"PLAIN","sasl.password":"admin","sasl.username":"user1","security.protocol":"SASL_PLAINTEXT"}'
+      - KAFKA_CONSUMER_CONFIG='{"auto.offset.reset":"latest","bootstrap.servers":"localhost:9092","group.id":"monitoring","sasl.mechanism":"PLAIN","sasl.password":"admin","sasl.username":"user1","security.protocol":"SASL_PLAINTEXT"}'
     networks:
       - temp-network
 networks:
   temp-network:
     external: true
     name: temp-network
+
+
