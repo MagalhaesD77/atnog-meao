@@ -12,6 +12,7 @@ KAFKA_PRODUCER_PASSWORD=$(kubectl get secret -n osm kafka-user-passwords -o json
 KAFKA_CONSUMER_PASSWORD=$(kubectl get secret -n osm kafka-user-passwords -o jsonpath="{.data.client-passwords}" | base64 --decode)
 
 helm -n osm-mec upgrade --install meao-monitoring meao-monitoring-helm-chart \
+    --set meaoMonitoring.deployment.image=localhost:5000/meao-monitoring \
     --set meaoMonitoring.deployment.env.OSM_HOSTNAME=$OSM_NBI \
     --set-string "meaoMonitoring.deployment.env.KAFKA_PRODUCER_CONFIG.sasl\.password=$KAFKA_PRODUCER_PASSWORD" \
     --set-string "meaoMonitoring.deployment.env.KAFKA_CONSUMER_CONFIG.sasl\.password=$KAFKA_CONSUMER_PASSWORD"

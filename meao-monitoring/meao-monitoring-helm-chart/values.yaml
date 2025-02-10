@@ -1,11 +1,9 @@
-
-
 meaoMonitoring:
   enabled: true
   name: meao-monitoring
 
   deployment:
-    image: localhost:5000/meao-monitoring:latest
+    image: ghcr.io/atnog/mec-migration/meao-monitoring:main
     ports:
       - containerPort: 8000
         protocol: TCP
