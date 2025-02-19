@@ -1,0 +1,48 @@
+{{- if .Values.meaoMonitoring.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Values.meaoMonitoring.name }}
+  name: {{ .Values.meaoMonitoring.name }}
+spec:
+  replicas: {{ .Values.meaoMonitoring.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.meaoMonitoring.name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.meaoMonitoring.name }}
+    spec:
+      containers:
+        - image: {{ .Values.meaoMonitoring.deployment.image }}
+          imagePullPolicy: {{ .Values.meaoMonitoring.deployment.imagePullPolicy }}
+          name: {{ .Values.meaoMonitoring.name }}
+          ports:
+            {{ .Values.meaoMonitoring.deployment.ports | toYaml | nindent 12 }}
+          env:
+          - name: OSM_HOSTNAME
+            value: "{{ .Values.meaoMonitoring.deployment.env.OSM_HOSTNAME }}"
+          - name: KAFKA_PRODUCER_CONFIG
+            value: '{{ .Values.meaoMonitoring.deployment.env.KAFKA_PRODUCER_CONFIG | toJson }}'
+          - name: KAFKA_CONSUMER_CONFIG
+            value: '{{ .Values.meaoMonitoring.deployment.env.KAFKA_CONSUMER_CONFIG | toJson }}'
+          - name: KUBECTL_COMMAND
+            value: "{{ .Values.meaoMonitoring.deployment.env.KUBECTL_COMMAND }}"
+          - name: KUBECTL_CONFIG_PATH
+            value: "{{ .Values.meaoMonitoring.deployment.env.KUBECTL_CONFIG_PATH }}"
+          - name: METRICS_COLLECTOR_KAFKA_TOPIC
+            value: "{{ .Values.meaoMonitoring.deployment.env.METRICS_COLLECTOR_KAFKA_TOPIC }}"
+          - name: MEAO_OSS_KAFKA_TOPIC
+            value: "{{ .Values.meaoMonitoring.deployment.env.MEAO_OSS_KAFKA_TOPIC }}"
+          - name: UE_LATENCY_KAFKA_TOPIC
+            value: "{{ .Values.meaoMonitoring.deployment.env.UE_LATENCY_KAFKA_TOPIC }}"
+          - name: SEND_CONTAINER_INFO_FREQ
+            value: "{{ .Values.meaoMonitoring.deployment.env.SEND_CONTAINER_INFO_FREQ }}"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+      restartPolicy: {{ .Values.meaoMonitoring.deployment.restartPolicy }}
+{{- end }}
