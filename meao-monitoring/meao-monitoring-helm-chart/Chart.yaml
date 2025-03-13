@@ -1,8 +1,0 @@
-name: meao-monitoring
-description: A generated Helm Chart for the MEAO monitoring and migration agent
-version: 0.0.1
-apiVersion: v1
-keywords:
-  - meao-monitoring
-sources:
-home:

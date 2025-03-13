@@ -1,53 +1,14 @@
-import json
 import logging
+import json
 import os
 
-from callbacks import load_callback_functions
-from kafka import KafkaConsumer, KafkaProducer
-from utils.db import DatabaseInitializer
-
-logging.basicConfig(level=logging.INFO)
-
-
-def main():
-    while True:
-        producer = KafkaProducer(
-            bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
-            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-        )
-        consumer = KafkaConsumer(
-            bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
-            group_id="group",
-            auto_offset_reset="earliest",  # Consume from the beginning of the topic
-            # enable_auto_commit=False,  # Disable auto-committing offsets
-            value_deserializer=lambda x: json.loads(x.decode("utf-8")),
-        )
-
-        callbacks = load_callback_functions()
-
-        topics = list(callbacks.keys())
-        consumer.subscribe(topics=topics)
-
-        logging.info(f"Listening for messages on topics: {topics}")
-        try:
-            for message in consumer:
-                logging.info(f"Received message: {message.value}")
-                topic = message.topic
-                if topic in callbacks:
-                    callback_function = callbacks[topic]
-                    response = callback_function(message.value)
-                    producer.send("responses", value=response)
-                    logging.info(f"Sent response: {response}")
-
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-
-        finally:
-            producer.close()
-            consumer.close()
-            logging.info(f"Restarting Kafka...")
-
+from src.utils.db import DatabaseInitializer
+from src.meao import MEAO
 
 if __name__ == "__main__":
+    kafka_producer_config = json.loads(os.environ.get("KAFKA_PRODUCER_CONFIG", '{"bootstrap_servers": "localhost:9092"}'))
+    kafka_consumer_config = json.loads(os.environ.get("KAFKA_CONSUMER_CONFIG", '{"bootstrap_servers": "localhost:9092", "group_id": "monitoring", "auto_offset_reset": "latest"}'))
+
     DatabaseInitializer.initialize_database()
-    main()
+    meao = MEAO(kafka_producer_config=kafka_producer_config, kafka_consumer_config=kafka_consumer_config)
+    meao.run()

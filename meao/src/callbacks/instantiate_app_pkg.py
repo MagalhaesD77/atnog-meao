@@ -1,9 +1,9 @@
-from utils.appd_validation import *
-from utils.capture_io import CaptureIO
-from utils.db import DB
-from utils.exceptions import handle_exceptions
-from utils.file_management import *
-from utils.osm import get_osm_client
+from src.utils.appd_validation import *
+from src.utils.capture_io import CaptureIO
+from src.utils.db import DB
+from src.utils.exceptions import handle_exceptions
+from src.utils.file_management import *
+from src.utils.osm import get_osm_client
 
 
 @handle_exceptions
@@ -12,6 +12,7 @@ def callback(message):
     vim_id = message.get("vim_id")
     name = message.get("name")
     description = message.get("description")
+    config = message.get("config")
     wait = message.get("wait")
 
     if app_pkg_id and vim_id and name and description:
@@ -26,6 +27,7 @@ def callback(message):
                 nsr_name=name,
                 account=vim_id,
                 description=description,
+                config=config,
                 wait=wait,
             )
         instance_id = out[0]
